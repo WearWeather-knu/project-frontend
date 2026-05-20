@@ -4,27 +4,27 @@ import ClosetPage from '@/pages/ClosetPage';
 import ProfilePage from '@/pages/ProfilePage';
 import LoginPage from '@/pages/LoginPage';
 import { useEffect, useState } from 'react';
-import { supabase } from './api/auth/supabaseClient';
+// import { supabase } from './api/auth/supabaseClient';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+  // useEffect(() => {
+  //   supabase.auth.getSession().then(({ data }) => {
+  //     setSession(data.session);
+  //     setLoading(false);
+  //   });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      },
-    );
+  //   const { data: listener } = supabase.auth.onAuthStateChange(
+  //     (_event, session) => {
+  //       setSession(session);
+  //     },
+  //   );
 
-    return () => listener.subscription.unsubscribe();
-  }, []);
+  //   return () => listener.subscription.unsubscribe();
+  // }, []);
 
   if (loading) return null;
 
