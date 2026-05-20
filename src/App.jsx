@@ -3,12 +3,15 @@ import MainPage from '@/pages/MainPage';
 import ClosetPage from '@/pages/ClosetPage';
 import ProfilePage from '@/pages/ProfilePage';
 import LoginPage from '@/pages/LoginPage';
+import ComparisonPage from './pages/ComparisonPage';
+import HistoryPage from './pages/HistoryPage';
 import { useEffect, useState } from 'react';
 import { supabase } from './api/auth/supabaseClient';
 import PrivateRoute from './components/PrivateRoute';
+import { useAuthStore } from './store/AuthStore';
 
 function App() {
-  const [session, setSession] = useState(null);
+  const { session, setSession } = useAuthStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,13 +21,13 @@ function App() {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
+      (_event, newSession) => {
+        setSession(newSession);
       },
     );
 
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [setSession]);
 
   if (loading) return null;
 
@@ -39,6 +42,8 @@ function App() {
           <Route path="/" element={<MainPage />} />
           <Route path="/closet" element={<ClosetPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/comparison" element={<ComparisonPage />} />
+          <Route path="/history" element={<HistoryPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
