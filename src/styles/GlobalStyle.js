@@ -9,12 +9,44 @@ const GlobalStyle = createGlobalStyle`
 
   html, body, #root {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
+  }
+
+  html {
+    background: #f4f5f7;
+  }
+
+  body {
+    min-height: 100dvh;
+    color: #111827;
+    font-family:
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button {
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 
   #root {
-    max-width: 430px;
-    margin: 0 auto;
+    width: 100%;
+    min-height: 100dvh;
     position: relative;
   }
 `;
