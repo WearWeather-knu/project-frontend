@@ -9,7 +9,7 @@ function LoginPage() {
     }
   };
 
-  return session ? undefined : (
+  return (
     <div>
       로그인
       <button onClick={handleLogin}>카카오로 시작하기</button>

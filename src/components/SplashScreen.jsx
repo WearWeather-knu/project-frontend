@@ -1,9 +1,10 @@
 import styled from 'styled-components';
+import splashLogo from '@/assets/스플래시 로고.png';
 
 function SplashScreen() {
   return (
     <Container>
-      <Logo src="/스플래시 로고.png" alt="WearWeather" />
+      <Logo src={splashLogo} alt="WearWeather" />
     </Container>
   );
 }
