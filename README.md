@@ -1,3 +1,3 @@
-## WeatherFit
+## Wear Weather
 
-> 날씨 기반 코디 추천 서비스
+> 날씨 기반 OOTD 추천 서비스
