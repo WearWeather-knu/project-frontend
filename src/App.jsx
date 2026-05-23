@@ -52,10 +52,12 @@ function App() {
     <BrowserRouter>
       <MobileFrame>
         <Routes>
-          <Route
-            path="/login"
-            element={session ? <Navigate to="/" /> : <MainPage />}
-          />
+          <Route element={<AppLayout />}>
+            <Route
+              path="/login"
+              element={session ? <Navigate to="/" /> : <MainPage />}
+            />
+          </Route>
           <Route element={<PrivateRoute session={session} />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<MainPage />} />

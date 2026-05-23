@@ -1,7 +1,7 @@
 import { useTheme } from 'styled-components';
 import styled from 'styled-components';
 import outfitImage from '@/assets/hero.png';
-import OutfitCarousel from '@/components/OutfitCarousel';
+import OutfitCarousel from '@/components/main/OutfitCarousel';
 
 const outfits = [
   { id: 1, title: '첫 번째 추천 코디', imageSrc: outfitImage },

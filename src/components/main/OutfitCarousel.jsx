@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import styled from 'styled-components';
 import OutfitCard from './OutfitCard';
-import PaginationDots from './PaginationDots';
+import PaginationDots from '@/components/common/PaginationDots';
 
 const CARD_GAP = 32;
 
