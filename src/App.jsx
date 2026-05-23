@@ -54,7 +54,7 @@ function App() {
         <Routes>
           <Route
             path="/login"
-            element={session ? <Navigate to="/" /> : <LoginPage />}
+            element={session ? <Navigate to="/" /> : <MainPage />}
           />
           <Route element={<PrivateRoute session={session} />}>
             <Route element={<AppLayout />}>
