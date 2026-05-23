@@ -7,7 +7,7 @@ const theme = {
     seasons: {
       spring: {
         primary: '#66B78B',
-        background: 'linear-gradient(27deg, #FFFFFF 13%, rgba(171, 245, 159, 0.49) 63%), rgba(217, 240, 104, 0.2) 89%)',
+        background: 'linear-gradient(27deg, #FFFFFF 13%, rgba(171, 245, 159, 0.49) 63%, rgba(217, 240, 104, 0.2) 89%)',
         text: '#448662',
       },
       summer: {
