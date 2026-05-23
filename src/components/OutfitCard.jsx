@@ -20,7 +20,7 @@ const Card = styled.article`
   justify-content: center;
   border-radius: 10px;
   background: #ffffff;
-  box-shadow: 2px 2px 10px 2px ${({ $color }) => `${$color}33`};
+  box-shadow: 2px 2px 8px 2px ${({ $color }) => `${$color}33`};
   overflow: hidden;
 `;
 
