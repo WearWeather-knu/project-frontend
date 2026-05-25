@@ -2,6 +2,8 @@ import { useTheme } from 'styled-components';
 import styled from 'styled-components';
 import outfitImage from '@/assets/hero.png';
 import OutfitCarousel from '@/components/main/OutfitCarousel';
+import RetryButton from '@/components/main/RetryButton';
+import WeatherInfoCard from '@/components/main/WeatherInfoCard';
 
 const outfits = [
   { id: 1, title: '첫 번째 추천 코디', imageSrc: outfitImage },
@@ -20,6 +22,15 @@ function MainPage() {
     <Page $background={seasonTheme.background}>
       <Question>🤔 오늘 뭐 입지 ?</Question>
       <OutfitCarousel items={outfits} seasonTheme={seasonTheme} />
+      <WeatherTip>☼ 선크림은 필수 !!</WeatherTip>
+      <WeatherSection>
+        <WeatherInfoCard
+          location="Daegu, korea"
+          temperature={22}
+          color={seasonTheme.primary}
+        />
+        <RetryButton color={seasonTheme.primary} />
+      </WeatherSection>
     </Page>
   );
 }
@@ -39,6 +50,19 @@ const Question = styled.p`
   color: ${({ theme }) => theme.colors.text};
   font-size: 14px;
   font-weight: 500;
+`;
+
+const WeatherTip = styled.p`
+  margin: 4px 0 0;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 14px;
+`;
+
+const WeatherSection = styled.section`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 20px;
+  align-items: stretch;
 `;
 
 export default MainPage;
