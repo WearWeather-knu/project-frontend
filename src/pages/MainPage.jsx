@@ -39,7 +39,7 @@ const Page = styled.section`
   min-height: calc(100% + 44px);
   display: grid;
   align-content: start;
-  gap: 16px;
+  gap: 5px;
   margin: -20px -20px -24px;
   padding: 20px 20px 24px;
   background: ${({ $background }) => $background};
@@ -48,7 +48,7 @@ const Page = styled.section`
 const Question = styled.p`
   margin: 0;
   color: ${({ theme }) => theme.colors.text};
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 500;
 `;
 
