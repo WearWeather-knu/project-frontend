@@ -1,5 +1,6 @@
 import { createGlobalStyle } from 'styled-components';
 import '@fontsource/coda-caption';
+import '@fontsource/duru-sans';
 
 const GlobalStyle = createGlobalStyle`
   @font-face {

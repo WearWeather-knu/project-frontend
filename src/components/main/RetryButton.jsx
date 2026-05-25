@@ -17,7 +17,9 @@ const Button = styled.button`
   align-content: center;
   gap: 4px;
   border-radius: 8px;
-  color: ${({ $color }) => $color};
+  background: ${({ $color }) => $color};
+  color: #ffffff;
+  box-shadow: 2px 2px 10px 2px ${({ $color }) => `${$color}33`};
 `;
 
 const Icon = styled.span`

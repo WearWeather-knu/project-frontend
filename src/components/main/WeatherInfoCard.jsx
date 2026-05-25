@@ -9,6 +9,10 @@ const weatherIconMap = {
     label: '맑음',
     icon: 'https://api.iconify.design/ion/sunny.svg',
   },
+  rainy: {
+    label: '비',
+    icon: 'https://api.iconify.design/bi/cloud-rain-fill.svg',
+  },
 };
 
 function WeatherInfoCard({ location, temperature, color, weather = 'cloudy' }) {
@@ -51,6 +55,7 @@ const Location = styled.p`
   align-items: center;
   gap: 6px;
   color: ${({ theme }) => theme.colors.text};
+  font-family: 'Duru Sans', sans-serif;
   font-size: 14px;
   font-weight: 400;
 `;
