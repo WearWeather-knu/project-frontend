@@ -45,7 +45,7 @@ function OutfitCarousel({ items, seasonTheme }) {
 
 const Container = styled.section`
   display: grid;
-  gap: 16px;
+  gap: 4px;
   margin: 0 -20px;
 `;
 
