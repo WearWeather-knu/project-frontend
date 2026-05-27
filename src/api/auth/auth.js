@@ -27,16 +27,3 @@ export const loginWithKakao = async () => {
 //     }, 1000);
 //   });
 // };
-
-export const loginWithRegular = async (userId, password) => {
-  // 나중에 supabase로 교체
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (userId === 'test@test.com' && password === '1234') {
-        resolve({ user: { id: 1, email: 'test@test.com' } });
-      } else {
-        reject(new Error('로그인 실패'));
-      }
-    }, 1000); // 네트워크 딜레이 시뮬레이션
-  });
-};

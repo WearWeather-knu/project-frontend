@@ -21,6 +21,8 @@ const Frame = styled.div`
   width: 100%;
   max-width: 390px;
   height: min(844px, 100dvh);
+  display: flex;
+  flex-direction: column;
   background: #ffffff;
   overflow: hidden;
 `;
