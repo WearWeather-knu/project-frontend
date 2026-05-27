@@ -16,8 +16,7 @@ function AppLayout() {
 }
 
 const Container = styled.div`
-  width: 100%;
-  height: 100%;
+  flex: 1;
   display: grid;
   grid-template-rows:
     calc(${({ theme }) => theme.heights.header} + env(safe-area-inset-top))
