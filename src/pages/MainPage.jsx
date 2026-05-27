@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from 'styled-components';
 import styled from 'styled-components';
 import outfitImage from '@/assets/hero.png';
@@ -18,14 +18,25 @@ const outfits = [
 function MainPage() {
   const theme = useTheme();
   const season = 'winter'; // 예시로 겨울 테마를 사용
+  const [temperature, setTemperature] = useState(0);
+  const [location, setLocation] = useState('');
   const seasonTheme = theme.colors.seasons[season];
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        fetchWeather({ lat: latitude, lon: longitude, location_name: '대구' })
-          .then((res) => console.log(res.data))
+        fetchWeather({
+          lat: latitude,
+          lon: longitude,
+          location_name: '대구광역시, 북구',
+        })
+          .then((res) => {
+            console.log(res);
+            const data = res.data.data;
+            setLocation(data.location_name);
+            setTemperature(data.current_temp);
+          })
           .catch((err) => console.error(err));
       },
       (error) => console.error(error),
@@ -39,8 +50,8 @@ function MainPage() {
       <WeatherTip>☼ 선크림은 필수 !!</WeatherTip>
       <WeatherSection>
         <WeatherInfoCard
-          location="Daegu, korea"
-          temperature={22}
+          location={location}
+          temperature={Math.floor(temperature)}
           color={seasonTheme.primary}
         />
         <RetryButton color={seasonTheme.primary} />
