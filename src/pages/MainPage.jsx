@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import styled from 'styled-components';
 import outfitImage from '@/assets/hero.png';
 import OutfitCarousel from '@/components/main/OutfitCarousel';
 import RetryButton from '@/components/main/RetryButton';
 import WeatherInfoCard from '@/components/main/WeatherInfoCard';
+import { fetchWeather } from '@/api/weather.js';
 
 const outfits = [
   { id: 1, title: '첫 번째 추천 코디', imageSrc: outfitImage },
@@ -17,6 +19,18 @@ function MainPage() {
   const theme = useTheme();
   const season = 'winter'; // 예시로 겨울 테마를 사용
   const seasonTheme = theme.colors.seasons[season];
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        fetchWeather({ lat: latitude, lon: longitude, location_name: '대구' })
+          .then((res) => console.log(res.data))
+          .catch((err) => console.error(err));
+      },
+      (error) => console.error(error),
+    );
+  }, []);
 
   return (
     <Page $background={seasonTheme.background}>
