@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { loginWithKakao, loginWithRegular } from '../api/auth/auth';
+import { useAuthStore } from '../store/AuthStore';
 
 function LoginPage() {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const setSession = useAuthStore((s) => s.setSession);
 
   const handleRegularLogin = async () => {
     setIsLoading(true);
     setError('');
     try {
-      await loginWithRegular(userId, password);
+      const result = await loginWithRegular(userId, password);
+      setSession(result);
     } catch (err) {
       setError('이메일 또는 비밀번호가 잘못되었습니다.');
       console.error('로그인 실패:', err);
