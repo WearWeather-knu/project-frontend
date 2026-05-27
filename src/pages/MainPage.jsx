@@ -53,9 +53,9 @@ const Question = styled.p`
 `;
 
 const WeatherTip = styled.p`
-  margin: 4px 0 0;
+  margin: 4px 0 8px;
   color: ${({ theme }) => theme.colors.text};
-  font-size: 14px;
+  font-size: 18px;
 `;
 
 const WeatherSection = styled.section`

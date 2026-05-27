@@ -56,7 +56,7 @@ const Location = styled.p`
   gap: 6px;
   color: ${({ theme }) => theme.colors.text};
   font-family: 'Duru Sans', sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 400;
 `;
 
@@ -85,9 +85,11 @@ const WeatherRow = styled.div`
 
 const Temperature = styled.strong`
   color: ${({ $color }) => $color};
+  margin-left: 18px;
   font-size: 40px;
   font-weight: 800;
   line-height: 1;
+  transform: translateY(-4px);
 `;
 
 const WeatherIcon = styled.span`
