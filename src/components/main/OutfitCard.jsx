@@ -6,7 +6,7 @@ function OutfitCard({ imageSrc, title, color }) {
       <Favorite aria-label="찜하기" $color={color}>
         ☆
       </Favorite>
-      <Image src={imageSrc} alt={title} />
+      <Image src={imageSrc} alt={title} draggable="false" />
     </Card>
   );
 }

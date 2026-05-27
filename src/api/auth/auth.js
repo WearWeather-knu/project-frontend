@@ -7,9 +7,9 @@ export const loginWithKakao = async () => {
       redirectTo: import.meta.env.VITE_REDIRECT_URL,
     },
   });
+  if (error) throw error;
 };
 
-//   if (error) throw error;
 // };
 
 // export const loginWithRegular = async (email, password) => {
