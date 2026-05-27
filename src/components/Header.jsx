@@ -1,11 +1,16 @@
+import { NavLink } from 'react-router-dom';
 import styled from 'styled-components';
 
 function Header() {
   return (
     <Container>
-      <WeatherIcon />
+      <NavLink to="/comparison">
+        <WeatherIcon />
+      </NavLink>
       <MainLogoText />
-      <HistoryIcon />
+      <NavLink to="/history">
+        <HistoryIcon />
+      </NavLink>
     </Container>
   );
 }
@@ -23,14 +28,12 @@ const Container = styled.header`
   background: #ffffff;
 `;
 
-const Title = styled.h1`
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-  color: #111827;
-`;
-
-export default Header;
+// const Title = styled.h1`
+//   font-size: 18px;
+//   font-weight: 700;
+//   line-height: 1;
+//   color: #111827;
+// `;
 
 function WeatherIcon() {
   return (
@@ -44,9 +47,9 @@ function WeatherIcon() {
       <path
         d="M14.1667 14.1668C12.9838 13.2771 11.5119 12.7501 9.91675 12.7501C9.68725 12.7501 9.46058 12.761 9.23675 12.7827C7.42519 12.9571 5.75025 13.822 4.5593 15.1981C3.36835 16.5743 2.75277 18.356 2.84022 20.1738C2.92768 21.9917 3.71146 23.7061 5.02902 24.9615C6.34658 26.217 8.09682 26.9171 9.91675 26.9168H24.7917C26.4825 26.9168 28.104 26.2451 29.2996 25.0496C30.4951 23.854 31.1667 22.2325 31.1667 20.5418C31.1667 18.851 30.4951 17.2295 29.2996 16.034C28.104 14.8384 26.4825 14.1668 24.7917 14.1668H24.7606M24.7606 14.1668C24.7804 13.9335 24.7908 13.6974 24.7917 13.4584C24.7948 11.4484 24.021 9.51501 22.6321 8.06214C21.2431 6.60927 19.3464 5.74937 17.3383 5.66213C15.3302 5.5749 13.366 6.26707 11.8563 7.59401C10.3465 8.92095 9.40798 10.78 9.23675 12.7827M24.7606 14.1668C24.618 15.7271 24.0083 17.2083 23.011 18.4168"
         stroke="#31326F"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -68,9 +71,9 @@ function HistoryIcon() {
       <path
         d="M17 4.25L13.6708 12.41L4.87329 13.0617L11.6166 18.7567L9.50579 27.3133L17 22.6667M17 4.25L20.3291 12.41L29.1266 13.0617L22.3833 18.7567L24.4941 27.3133L17 22.6667"
         stroke="#31326F"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -150,3 +153,5 @@ function MainLogoText() {
     </svg>
   );
 }
+
+export default Header;
