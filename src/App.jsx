@@ -8,7 +8,7 @@ import HistoryPage from './pages/HistoryPage';
 import { useEffect, useState } from 'react';
 import { supabase } from './api/auth/supabaseClient';
 import PrivateRoute from './components/PrivateRoute';
-import { useAuthStore } from './store/authStore';
+import { useAuthStore } from './store/authStore.js';
 import AppLayout from './components/AppLayout';
 import MobileFrame from './components/MobileFrame';
 import SplashScreen from './components/SplashScreen';
