@@ -21,6 +21,8 @@ function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      // console.log(data.session);
+      // console.log(data.session?.access_token);
       setLoading(false);
     });
 
