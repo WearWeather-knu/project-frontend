@@ -6,6 +6,7 @@ import OutfitCarousel from '@/components/main/OutfitCarousel';
 import RetryButton from '@/components/main/RetryButton';
 import WeatherInfoCard from '@/components/main/WeatherInfoCard';
 import { fetchWeather } from '@/api/weather.js';
+import { fetchRecommend } from '../api/recommend';
 
 const outfits = [
   { id: 1, title: '첫 번째 추천 코디', imageSrc: outfitImage },
@@ -40,6 +41,14 @@ function MainPage() {
           .catch((err) => console.error(err));
       },
       (error) => console.error(error),
+    );
+  }, []);
+
+  useEffect(() => {
+    fetchRecommend(`온도{temperature}에 입기 괜찮은 의상 추천해줘`).then(
+      (res) => {
+        console.log(res);
+      },
     );
   }, []);
 
