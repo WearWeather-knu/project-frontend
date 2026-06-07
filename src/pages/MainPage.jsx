@@ -45,10 +45,10 @@ function MainPage() {
   }, []);
 
   useEffect(() => {
-    fetchRecommend(`현재 기온 20도엔 입기 괜찮은 의상 추천해줘`).then((res) => {
+    fetchRecommend(String(temperature)).then((res) => {
       console.log(res);
     });
-  }, []);
+  }, [temperature]);
 
   return (
     <Page $background={seasonTheme.background}>
