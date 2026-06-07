@@ -45,7 +45,7 @@ function MainPage() {
   }, []);
 
   useEffect(() => {
-    fetchRecommend(String(temperature)).then((res) => {
+    fetchRecommend({ weather: String(temperature) }).then((res) => {
       console.log(res);
     });
   }, [temperature]);
