@@ -45,11 +45,9 @@ function MainPage() {
   }, []);
 
   useEffect(() => {
-    fetchRecommend(`온도{temperature}에 입기 괜찮은 의상 추천해줘`).then(
-      (res) => {
-        console.log(res);
-      },
-    );
+    fetchRecommend(`현재 기온 20도엔 입기 괜찮은 의상 추천해줘`).then((res) => {
+      console.log(res);
+    });
   }, []);
 
   return (
