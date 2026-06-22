@@ -18,24 +18,17 @@ function BottomTabBar() {
                 <MainLogo isActive={isActive} />
               </LogoWrapper>
             ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-              }}
-            >
-              {tab.logo}
-              {tab.label}
-            </div>
-          )
+              <TabContent>
+                {tab.logo}
+                {tab.label}
+              </TabContent>
+            )
           }
         </TabLink>
       ))}
     </Container>
   );
 }
-
 const Container = styled.nav`
   height: calc(
     ${({ theme }) => theme.heights.bottomNav} + env(safe-area-inset-bottom)
@@ -63,8 +56,14 @@ const TabLink = styled(NavLink)`
 
   &.active {
     color: #111827;
-    background: ${({ $isHome }) => $isHome ? 'transparent' : '#f2f4f7'};
+    background: ${({ $isHome }) => ($isHome ? 'transparent' : '#f2f4f7')};
   }
+`;
+
+const TabContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
 const LogoWrapper = styled.div`
