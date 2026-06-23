@@ -85,16 +85,16 @@ function ComparisonPage() {
   return (
     <Page>
       <TitleGroup>
-        <Eyebrow>Daily Weather</Eyebrow>
-        <Title>오늘과 어제 비교</Title>
-        <Description>
-          어제보다 오늘이 더 더운지, 습한지, 바람이 강한지 확인해요.
-        </Description>
+        <Title>WEATHER</Title>
       </TitleGroup>
 
       <WeatherGrid>
         {weatherDays.map((day) => (
-          <WeatherCard key={day.id} $accent={day.accent} $primary={day.id === 'today'}>
+          <WeatherCard
+            key={day.id}
+            $accent={day.accent}
+            $primary={day.id === 'today'}
+          >
             <CardHeader>
               <Badge $accent={day.accent}>{day.label}</Badge>
               <DateText>{day.date}</DateText>
