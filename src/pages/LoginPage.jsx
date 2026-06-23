@@ -2,8 +2,16 @@ import { useState } from 'react';
 import { loginWithKakao } from '../api/auth/auth';
 import styled from 'styled-components';
 import splashLogo from '@/assets/스플래시 로고.png';
+import { useNavigate } from 'react-router-dom';
+import {
+  createDevSession,
+  saveDevSession,
+  useAuthStore,
+} from '@/store/authStore';
 
 function LoginPage() {
+  const navigate = useNavigate();
+  const setSession = useAuthStore((state) => state.setSession);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,6 +28,13 @@ function LoginPage() {
     }
   };
 
+  const handleDevLogin = () => {
+    const devSession = createDevSession();
+    saveDevSession(devSession);
+    setSession(devSession);
+    navigate('/', { replace: true });
+  };
+
   return (
     <Container>
       <Logo src={splashLogo} alt="WearWeather" />
@@ -34,6 +49,11 @@ function LoginPage() {
           </KakaoIconWrapper>
           카카오 로그인
         </KakaoButton>
+        {import.meta.env.DEV && (
+          <DevLoginButton type="button" onClick={handleDevLogin}>
+            개발용 로그인
+          </DevLoginButton>
+        )}
         {error && <ErrorText role="alert">{error}</ErrorText>}
       </BottomArea>
     </Container>
@@ -113,6 +133,18 @@ const KakaoButton = styled.button`
     opacity: 0.6;
     cursor: not-allowed;
   }
+`;
+
+const DevLoginButton = styled.button`
+  width: 100%;
+  height: 48px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
 `;
 
 const KakaoIconWrapper = styled.div`

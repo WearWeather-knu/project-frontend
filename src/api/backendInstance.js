@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { supabase } from './auth/supabaseClient';
 
-const instance = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL?.trim(),
-  timeout: 50000,
+const backendInstance = axios.create({
+  baseURL: import.meta.env.VITE_BACKEND_URL?.trim(),
+  timeout: 10000,
 });
 
-instance.interceptors.request.use(async (config) => {
+backendInstance.interceptors.request.use(async (config) => {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
@@ -17,4 +17,4 @@ instance.interceptors.request.use(async (config) => {
   return config;
 });
 
-export default instance;
+export default backendInstance;

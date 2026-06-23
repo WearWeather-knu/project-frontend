@@ -1,10 +1,20 @@
 import { supabase } from './supabaseClient';
 
+const getOAuthRedirectUrl = () => {
+  const configuredRedirectUrl = import.meta.env.VITE_REDIRECT_URL?.trim();
+
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    return configuredRedirectUrl || window.location.origin;
+  }
+
+  return configuredRedirectUrl;
+};
+
 export const loginWithKakao = async () => {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'kakao',
     options: {
-      redirectTo: import.meta.env.VITE_REDIRECT_URL,
+      redirectTo: getOAuthRedirectUrl(),
     },
   });
   if (error) throw error;
