@@ -8,7 +8,18 @@ const detailRows = [
   ['포인트', 'point'],
 ];
 
-function OutfitCard({ imageSrc, title, details, color, isFlipped, onToggle }) {
+function OutfitCard({
+  imageSrc,
+  title,
+  details,
+  color,
+  isFlipped,
+  isFavorite = false,
+  favoriteSize = 32,
+  favoriteOffset = { top: 16, right: 18 },
+  onToggle,
+  onFavoriteToggle,
+}) {
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -18,6 +29,7 @@ function OutfitCard({ imageSrc, title, details, color, isFlipped, onToggle }) {
 
   const handleFavoriteClick = (event) => {
     event.stopPropagation();
+    onFavoriteToggle?.();
   };
 
   return (
@@ -34,11 +46,16 @@ function OutfitCard({ imageSrc, title, details, color, isFlipped, onToggle }) {
         <Face $side="front">
           <Favorite
             type="button"
-            aria-label="찜하기"
+            aria-label={isFavorite ? '찜 해제' : '찜하기'}
+            aria-pressed={isFavorite}
             $color={color}
+            $isFavorite={isFavorite}
+            $size={favoriteSize}
+            $top={favoriteOffset.top}
+            $right={favoriteOffset.right}
             onClick={handleFavoriteClick}
           >
-            ☆
+            <StarIcon filled={isFavorite} />
           </Favorite>
           <Image src={imageSrc} alt={title} draggable="false" />
         </Face>
@@ -59,6 +76,20 @@ function OutfitCard({ imageSrc, title, details, color, isFlipped, onToggle }) {
         </Face>
       </Card>
     </CardShell>
+  );
+}
+
+function StarIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 2.4L14.9 8.4L21.5 9.3L16.7 13.9L17.9 20.4L12 17.2L6.1 20.4L7.3 13.9L2.5 9.3L9.1 8.4L12 2.4Z"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+    </svg>
   );
 }
 
@@ -103,17 +134,23 @@ const Face = styled.div`
 
 const Favorite = styled.button`
   position: absolute;
-  top: 16px;
-  right: 18px;
+  top: ${({ $top }) => $top}px;
+  right: ${({ $right }) => $right}px;
   width: 32px;
   height: 32px;
   padding: 0;
   border: 0;
   background: transparent;
   color: ${({ $color }) => $color};
-  font-size: 32px;
-  line-height: 1;
+  font-size: 0;
   cursor: pointer;
+  opacity: ${({ $isFavorite }) => ($isFavorite ? 1 : 0.82)};
+
+  svg {
+    width: ${({ $size }) => $size}px;
+    height: ${({ $size }) => $size}px;
+    display: block;
+  }
 `;
 
 const Image = styled.img`
