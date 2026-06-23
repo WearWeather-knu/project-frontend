@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import styled from 'styled-components';
 import OutfitCard from './OutfitCard';
 import PaginationDots from '@/components/common/PaginationDots';
+import { useLikedOutfits } from '@/store/likedOutfitsStore';
 
 const CARD_GAP = 32;
 
@@ -9,6 +10,7 @@ function OutfitCarousel({ items, seasonTheme }) {
   const trackRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flippedCardIds, setFlippedCardIds] = useState([]);
+  const { isLiked, toggleLikedOutfit } = useLikedOutfits();
   const isDragging = useRef(false);
   const hasDragged = useRef(false);
   const startX = useRef(0);
@@ -104,7 +106,14 @@ function OutfitCarousel({ items, seasonTheme }) {
                 details={item.details}
                 color={seasonTheme.primary}
                 isFlipped={flippedCardIds.includes(item.id)}
+                isFavorite={isLiked(item.id)}
                 onToggle={() => toggleCard(item.id)}
+                onFavoriteToggle={() =>
+                  toggleLikedOutfit({
+                    ...item,
+                    color: seasonTheme.primary,
+                  })
+                }
               />
             </Slide>
           ))}
