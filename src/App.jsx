@@ -3,8 +3,10 @@ import MainPage from '@/pages/MainPage';
 import ClosetPage from '@/pages/ClosetPage';
 import ProfilePage from '@/pages/ProfilePage';
 import LoginPage from '@/pages/LoginPage';
+import OotdCalendarPage from '@/pages/OotdCalendarPage';
 import ComparisonPage from './pages/ComparisonPage';
 import HistoryPage from './pages/HistoryPage';
+import StylePreferencesPage from './pages/StylePreferencesPage';
 import { useEffect, useState } from 'react';
 import { supabase } from './api/auth/supabaseClient';
 import PrivateRoute from './components/PrivateRoute';
@@ -63,6 +65,8 @@ function App() {
               <Route path="/closet" element={<ClosetPage />} />
               <Route path="/closet/:category" element={<ClosetPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/style-preferences" element={<StylePreferencesPage />} />
+              <Route path="/ootd-calendar" element={<OotdCalendarPage />} />
               <Route path="/comparison" element={<ComparisonPage />} />
               <Route path="/history" element={<HistoryPage />} />
             </Route>

@@ -17,6 +17,8 @@ function OutfitCard({
   isFavorite = false,
   favoriteSize = 32,
   favoriteOffset = { top: 16, right: 18 },
+  recommendationNumber,
+  compact = false,
   onToggle,
   onFavoriteToggle,
 }) {
@@ -61,17 +63,37 @@ function OutfitCard({
         </Face>
 
         <Face $side="back">
-          <BackContent>
-            <BackTitle>{title}</BackTitle>
+          <Favorite
+            type="button"
+            aria-label={isFavorite ? '찜 해제' : '찜하기'}
+            aria-pressed={isFavorite}
+            $color={color}
+            $isFavorite={isFavorite}
+            $size={favoriteSize}
+            $top={favoriteOffset.top}
+            $right={favoriteOffset.right}
+            onClick={handleFavoriteClick}
+          >
+            <StarIcon filled={isFavorite} />
+          </Favorite>
+          <BackContent $compact={compact}>
+            {!compact && (
+              <BackTitle $color={color}>No.{recommendationNumber}</BackTitle>
+            )}
             <DetailList>
               {detailRows.map(([label, key]) => (
-                <DetailRow key={key}>
-                  <DetailLabel>{label}</DetailLabel>
-                  <DetailValue>{details?.[key] ?? '-'}</DetailValue>
+                <DetailRow key={key} $compact={compact}>
+                  <DetailLabel $compact={compact}>{label}</DetailLabel>
+                  <DetailValue $compact={compact}>
+                    {details?.[key] ?? '-'}
+                  </DetailValue>
                 </DetailRow>
               ))}
             </DetailList>
-            <Reason>{details?.reason}</Reason>
+            <ReasonBox $color={color} $compact={compact}>
+              {!compact && <ReasonLabel>추천 이유</ReasonLabel>}
+              <Reason $compact={compact}>{details?.reason ?? '-'}</Reason>
+            </ReasonBox>
           </BackContent>
         </Face>
       </Card>
@@ -163,52 +185,75 @@ const BackContent = styled.div`
   width: 100%;
   height: 100%;
   display: grid;
-  align-content: center;
-  gap: 14px;
-  padding: 28px;
+  align-content: start;
+  gap: ${({ $compact }) => ($compact ? '10px' : '20px')};
+  padding: ${({ $compact }) =>
+    $compact ? '32px 20px 16px' : '74px 44px 42px'};
+  container-type: inline-size;
 `;
 
 const BackTitle = styled.h3`
   margin: 0;
-  color: #111827;
-  font-size: 22px;
-  line-height: 1.3;
+  color: ${({ $color }) => $color};
+  font-size: ${({ $compact }) =>
+    $compact ? '20px' : '28px'};
+  line-height: 1.1;
+  font-weight: 800;
 `;
 
 const DetailList = styled.dl`
   display: grid;
-  gap: 9px;
+  gap: ${({ $compact }) => ($compact ? '4px' : '12px')};
   margin: 0;
 `;
 
 const DetailRow = styled.div`
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: ${({ $compact }) =>
+    $compact ? '38px minmax(0, 1fr)' : '58px minmax(0, 1fr)'};
+  gap: ${({ $compact }) => ($compact ? '8px' : '38px')};
   align-items: start;
 `;
 
 const DetailLabel = styled.dt`
-  color: #6b7280;
-  font-size: 13px;
-  font-weight: 700;
+  color: #111827;
+  font-size: ${({ $compact }) => ($compact ? '10px' : '13px')};
+  font-weight: 500;
 `;
 
 const DetailValue = styled.dd`
   margin: 0;
   color: #111827;
-  font-size: 14px;
+  font-size: ${({ $compact }) => ($compact ? '10px' : '13px')};
   line-height: 1.35;
   word-break: keep-all;
+  overflow-wrap: anywhere;
+`;
+
+const ReasonBox = styled.div`
+  align-self: end;
+  display: grid;
+  gap: 18px;
+  margin-top: ${({ $compact }) => ($compact ? '2px' : '22px')};
+  padding: ${({ $compact }) => ($compact ? '10px 8px' : '18px 18px 24px')};
+  border-radius: 8px;
+  background: ${({ $color }) => `${$color}24`};
+  text-align: center;
+`;
+
+const ReasonLabel = styled.span`
+  color: #43474f;
+  font-size: 10px;
+  line-height: 1;
 `;
 
 const Reason = styled.p`
   margin: 0;
-  padding-top: 4px;
-  color: #4b5563;
-  font-size: 14px;
+  color: #111827;
+  font-size: ${({ $compact }) => ($compact ? '8px' : '12px')};
   line-height: 1.45;
   word-break: keep-all;
+  overflow-wrap: anywhere;
 `;
 
 export default OutfitCard;

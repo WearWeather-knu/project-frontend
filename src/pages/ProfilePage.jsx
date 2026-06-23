@@ -2,15 +2,22 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { supabase } from '@/api/auth/supabaseClient';
 import { clearDevSession, useAuthStore } from '@/store/authStore';
+import { useSeasonTheme } from '@/store/seasonThemeStore';
 
 const profileTags = ['#스트릿패션', '#편한옷선호', '#더위취약', '#햇빛알러지'];
-const menuItems = ['나의 옷장', '나의 선호 착장', '나의 옷장 기록', '나의 옷장 기록'];
+const menuItems = [
+  { label: '내 옷장 관리', path: '/closet' },
+  { label: '스타일 취향 설정', path: '/style-preferences' },
+  { label: 'OOTD 캘린더', path: '/ootd-calendar' },
+  { label: '선호 OOTD', path: '/history' },
+];
 
 function ProfilePage() {
   const navigate = useNavigate();
   const { session, setSession } = useAuthStore();
   const email = session?.user?.email ?? 'weather@example.com';
   const displayName = email.split('@')[0] || '사용자';
+  const { seasonTheme } = useSeasonTheme();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -20,18 +27,26 @@ function ProfilePage() {
   };
 
   return (
-    <Page>
-      <ProfileCard>
-        <ProfileSettingsButton type="button" aria-label="프로필 설정">
+    <Page $background={seasonTheme.background}>
+      <ProfileCard $shadowColor={seasonTheme.primary}>
+        <ProfileSettingsButton
+          type="button"
+          aria-label="프로필 설정"
+          $primary={seasonTheme.primary}
+        >
           <ProfileSettingsIcon />
         </ProfileSettingsButton>
 
         <AvatarArea>
-          <Avatar aria-hidden="true">
+          <Avatar aria-hidden="true" $primary={seasonTheme.primary}>
             <AvatarHead />
             <AvatarBody />
           </Avatar>
-          <CameraButton type="button" aria-label="프로필 사진 변경">
+          <CameraButton
+            type="button"
+            aria-label="프로필 사진 변경"
+            $primary={seasonTheme.primary}
+          >
             <CameraIcon />
           </CameraButton>
         </AvatarArea>
@@ -44,7 +59,11 @@ function ProfilePage() {
           </UserLine>
           <TagList>
             {profileTags.map((tag, index) => (
-              <ProfileTag key={tag} $active={index < 2}>
+              <ProfileTag
+                key={tag}
+                $active={index < 2}
+                $primary={seasonTheme.primary}
+              >
                 {tag}
               </ProfileTag>
             ))}
@@ -52,19 +71,25 @@ function ProfilePage() {
         </ProfileDetails>
       </ProfileCard>
 
-      <MenuCard>
-        {menuItems.map((item, index) => (
-          <MenuButton key={`${item}-${index}`} type="button">
-            <MenuIconCircle aria-hidden="true">
+      <MenuCard $shadowColor={seasonTheme.primary}>
+        {menuItems.map((item) => (
+          <MenuButton
+            key={item.path}
+            type="button"
+            onClick={() => navigate(item.path)}
+          >
+            <MenuIconCircle aria-hidden="true" $primary={seasonTheme.primary}>
               <HangerIcon />
             </MenuIconCircle>
-            <MenuText>{item}</MenuText>
-            <Chevron aria-hidden="true">›</Chevron>
+            <MenuText>{item.label}</MenuText>
+            <Chevron aria-hidden="true" $primary={seasonTheme.primary}>
+              ›
+            </Chevron>
           </MenuButton>
         ))}
       </MenuCard>
 
-      <AccountCard>
+      <AccountCard $shadowColor={seasonTheme.primary}>
         <AccountButton type="button" onClick={handleLogout}>
           로그아웃
         </AccountButton>
@@ -139,65 +164,63 @@ const Page = styled.section`
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   align-content: stretch;
-  gap: 18px;
+  gap: 40px;
   margin: -20px -20px -24px;
-  padding: 34px 28px 36px;
-  background:
-    radial-gradient(circle at 6% 42%, rgba(214, 198, 245, 0.7), transparent 32%),
-    linear-gradient(180deg, #ffffff 0%, #f3f0ff 56%, #eaf5ff 100%);
+  padding: 43px 28px 56px;
+  background: ${({ $background }) => $background};
 `;
 
 const ProfileCard = styled.section`
   position: relative;
   min-height: 154px;
   display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
+  grid-template-columns: 112px minmax(0, 1fr);
   align-items: center;
-  gap: 15px;
-  padding: 18px 21px;
+  gap: 16px;
+  padding: 20px 28px;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 22px rgba(49, 50, 111, 0.14);
+  box-shadow: 0 8px 22px ${({ $shadowColor }) => `${$shadowColor}29`};
 `;
 
 const ProfileSettingsButton = styled.button`
   position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 28px;
-  height: 28px;
+  top: 20px;
+  right: 30px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
+  color: ${({ $primary }) => $primary};
 
   svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
   }
 `;
 
 const AvatarArea = styled.div`
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 108px;
+  height: 108px;
 `;
 
 const Avatar = styled.div`
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 108px;
+  height: 108px;
   overflow: hidden;
-  border: 3px solid ${({ theme }) => theme.colors.seasons.winter.primary};
+  border: 3px solid ${({ $primary }) => $primary};
   border-radius: 50%;
   background: #d9d9d9;
 `;
 
 const AvatarHead = styled.div`
   position: absolute;
-  top: 21px;
+  top: 24px;
   left: 50%;
-  width: 33px;
-  height: 33px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #ffffff;
   transform: translateX(-50%);
@@ -207,8 +230,8 @@ const AvatarBody = styled.div`
   position: absolute;
   left: 50%;
   bottom: -4px;
-  width: 68px;
-  height: 39px;
+  width: 64px;
+  height: 40px;
   border-radius: 50% 50% 0 0;
   background: #ffffff;
   transform: translateX(-50%);
@@ -216,47 +239,48 @@ const AvatarBody = styled.div`
 
 const CameraButton = styled.button`
   position: absolute;
-  right: 8px;
+  right: 9px;
   bottom: 0;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   border: 2px solid #ffffff;
   border-radius: 50%;
   background: #ffffff;
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
+  color: ${({ $primary }) => $primary};
   box-shadow: 0 2px 8px rgba(17, 24, 39, 0.14);
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 13px;
+    height: 13px;
   }
 `;
 
 const ProfileDetails = styled.div`
   min-width: 0;
   display: grid;
-  gap: 6px;
-  padding-top: 8px;
+  gap: 5px;
+  padding-top: 16px;
 `;
 
 const UserLabel = styled.span`
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
-  font-size: 10px;
-  font-weight: 700;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 6px;
+  font-weight: 400;
 `;
 
 const UserLine = styled.div`
   min-width: 0;
-  display: grid;
-  gap: 3px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
 `;
 
 const UserName = styled.h2`
   margin: 0;
   color: #333333;
-  font-size: 21px;
+  font-size: 16px;
   line-height: 1.15;
   font-weight: 500;
 `;
@@ -265,7 +289,7 @@ const UserEmail = styled.p`
   min-width: 0;
   margin: 0;
   color: #d1d5db;
-  font-size: 12px;
+  font-size: 8px;
   line-height: 1.25;
   word-break: break-all;
 `;
@@ -273,32 +297,31 @@ const UserEmail = styled.p`
 const TagList = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 7px;
-  padding-top: 3px;
+  gap: 5px 6px;
+  padding-top: 7px;
 `;
 
 const ProfileTag = styled.span`
   min-width: 0;
-  padding: 5px 6px;
-  border: 1px solid ${({ theme }) => theme.colors.seasons.winter.primary};
+  padding: 4px 6px;
+  border: 1px solid ${({ $primary }) => $primary};
   border-radius: 999px;
-  background: ${({ $active, theme }) =>
-    $active ? theme.colors.seasons.winter.primary : '#ffffff'};
-  color: ${({ $active, theme }) =>
-    $active ? '#ffffff' : theme.colors.seasons.winter.primary};
-  font-size: 10px;
-  font-weight: 700;
+  background: ${({ $active, $primary }) => ($active ? $primary : '#ffffff')};
+  color: ${({ $active, $primary }) => ($active ? '#ffffff' : $primary)};
+  font-size: 8px;
+  font-weight: 400;
   text-align: center;
 `;
 
 const MenuCard = styled.section`
-  min-height: 0;
+  height: 272px;
   display: grid;
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, 68px);
   overflow: hidden;
+  align-self: start;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 22px rgba(49, 50, 111, 0.14);
+  box-shadow: 0 8px 22px ${({ $shadowColor }) => `${$shadowColor}29`};
 `;
 
 const MenuButton = styled.button`
@@ -307,11 +330,11 @@ const MenuButton = styled.button`
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 20px;
   align-items: center;
-  gap: 12px;
-  padding: 10px 22px;
+  gap: 11px;
+  padding: 9px 22px;
   border-bottom: 1px solid #eef0f3;
   background: #ffffff;
-  color: #4b5563;
+  color: ${({ theme }) => theme.colors.text};
   text-align: left;
 
   &:last-child {
@@ -320,29 +343,29 @@ const MenuButton = styled.button`
 `;
 
 const MenuIconCircle = styled.span`
-  width: 35px;
-  height: 35px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: ${({ theme }) => theme.colors.seasons.winter.primary};
+  background: ${({ $primary }) => $primary};
   color: #ffffff;
 
   svg {
-    width: 28px;
-    height: 28px;
+    width: 27px;
+    height: 27px;
   }
 `;
 
 const MenuText = styled.span`
   min-width: 0;
-  color: #4b5563;
-  font-size: 17px;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 18px;
   line-height: 1.25;
 `;
 
 const Chevron = styled.span`
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
+  color: ${({ $primary }) => $primary};
   font-size: 31px;
   line-height: 1;
 `;
@@ -351,7 +374,7 @@ const AccountCard = styled.section`
   overflow: hidden;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 22px rgba(49, 50, 111, 0.14);
+  box-shadow: 0 8px 22px ${({ $shadowColor }) => `${$shadowColor}29`};
 `;
 
 const AccountButton = styled.button`

@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useTheme } from 'styled-components';
 import styled from 'styled-components';
 import OutfitCard from '@/components/main/OutfitCard';
 import { useLikedOutfits } from '@/store/likedOutfitsStore';
+import { useSeasonTheme } from '@/store/seasonThemeStore';
 
 function HistoryPage() {
-  const theme = useTheme();
   const [flippedCardIds, setFlippedCardIds] = useState([]);
   const { likedOutfits, toggleLikedOutfit } = useLikedOutfits();
+  const { seasonTheme } = useSeasonTheme();
   const hasLikedOutfits = likedOutfits.length > 0;
-  const cardColor = theme.colors.seasons.spring.primary;
+  const cardColor = seasonTheme.primary;
 
   const toggleCard = (id) => {
     setFlippedCardIds((currentIds) =>
@@ -20,12 +20,12 @@ function HistoryPage() {
   };
 
   return (
-    <Page $background={theme.colors.seasons.winter.background}>
+    <Page $background={seasonTheme.background}>
       <Title>P I C K S</Title>
 
       {hasLikedOutfits ? (
         <OutfitList>
-          {likedOutfits.map((outfit) => (
+          {likedOutfits.map((outfit, index) => (
             <OutfitCard
               key={outfit.id}
               imageSrc={outfit.imageSrc}
@@ -36,6 +36,8 @@ function HistoryPage() {
               isFavorite
               favoriteSize={24}
               favoriteOffset={{ top: 8, right: 10 }}
+              recommendationNumber={index + 1}
+              compact
               onToggle={() => toggleCard(outfit.id)}
               onFavoriteToggle={() => toggleLikedOutfit(outfit)}
             />
@@ -43,7 +45,9 @@ function HistoryPage() {
         </OutfitList>
       ) : (
         <EmptyState>
-          <EmptyTitle>아직 저장된 코디가 없어요.</EmptyTitle>
+          <EmptyTitle $textColor={seasonTheme.text}>
+            아직 저장된 코디가 없어요.
+          </EmptyTitle>
           <EmptyText>마음에 드는 추천 코디의 별을 누르면 이곳에 모여요.</EmptyText>
         </EmptyState>
       )}
@@ -63,7 +67,7 @@ const Page = styled.section`
 
 const Title = styled.h2`
   margin: 0 0 4px 22px;
-  color: ${({ theme }) => theme.colors.text};
+  color: #43474F;
   font-family: 'KyoboHandwriting2025lyb', sans-serif;
   font-size: 18px;
   font-weight: 400;
@@ -88,7 +92,7 @@ const EmptyState = styled.div`
 
 const EmptyTitle = styled.h3`
   margin: 0;
-  color: #111827;
+  color: ${({ $textColor }) => $textColor};
   font-size: 18px;
 `;
 

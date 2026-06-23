@@ -98,7 +98,7 @@ function OutfitCarousel({ items, seasonTheme }) {
           onClickCapture={handleClick}
           onDragStart={(e) => e.preventDefault()}
         >
-          {items.map((item) => (
+          {items.map((item, index) => (
             <Slide key={item.id} data-slide>
               <OutfitCard
                 imageSrc={item.imageSrc}
@@ -107,6 +107,7 @@ function OutfitCarousel({ items, seasonTheme }) {
                 color={seasonTheme.primary}
                 isFlipped={flippedCardIds.includes(item.id)}
                 isFavorite={isLiked(item.id)}
+                recommendationNumber={index + 1}
                 onToggle={() => toggleCard(item.id)}
                 onFavoriteToggle={() =>
                   toggleLikedOutfit({

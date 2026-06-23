@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { useSeasonTheme } from '@/store/seasonThemeStore';
 
 const closetCategories = [
   {
@@ -25,8 +26,15 @@ const closetCategories = [
     layout: { left: 0, top: 52, width: 50, height: 48 },
   },
   {
+    key: 'dress',
+    label: '원피스',
+    area: 'dress',
+    hasHanger: true,
+    layout: { left: 50, top: 24, width: 50, height: 62 },
+  },
+  {
     key: 'accessory',
-    label: '모자/액세서리',
+    label: '액세서리',
     area: 'accessory',
     layout: { left: 50, top: 0, width: 50, height: 12 },
   },
@@ -37,13 +45,6 @@ const closetCategories = [
     layout: { left: 50, top: 12, width: 50, height: 12 },
   },
   {
-    key: 'dress',
-    label: '원피스',
-    area: 'dress',
-    hasHanger: true,
-    layout: { left: 50, top: 24, width: 50, height: 62 },
-  },
-  {
     key: 'shoes',
     label: '신발',
     area: 'shoes',
@@ -52,6 +53,16 @@ const closetCategories = [
 ];
 
 const categoryLabels = closetCategories.map((category) => category.label);
+const spacedCategoryLabels = {
+  아우터: '아 우 터',
+  상의: '상 의',
+  하의: '하 의',
+  액세서리: '액 세 서 리',
+  가방: '가 방',
+  원피스: '원 피 스',
+  신발: '신 발',
+  전체: '전 체',
+};
 const categoryByKey = Object.fromEntries(
   closetCategories.map((category) => [category.key, category]),
 );
@@ -104,6 +115,11 @@ const colorMap = {
 };
 
 const fallbackColor = '#D8DEE9';
+const defaultClothingImage = encodeURI(
+  '/ChatGPT Image 2026년 6월 23일 오후 03_34_52.png',
+);
+const lightColorValues = new Set(['#ffffff', '#fff', '#f8fafc', '#f4f5f7']);
+const isLightColor = (color) => lightColorValues.has(color.toLowerCase());
 
 const initialForm = {
   name: '',
@@ -170,6 +186,7 @@ const closetItems = [
 function ClosetPage() {
   const navigate = useNavigate();
   const { category } = useParams();
+  const { seasonTheme } = useSeasonTheme();
   const selectedCategory =
     category === allCategory.key ? allCategory : category ? categoryByKey[category] : null;
   const [items, setItems] = useState(closetItems);
@@ -311,12 +328,18 @@ function ClosetPage() {
   };
 
   if (!selectedCategory) {
-    return <ClosetHomeView onSelect={(key) => navigate(`/closet/${key}`)} />;
+    return (
+      <ClosetHomeView
+        seasonTheme={seasonTheme}
+        onSelect={(key) => navigate(`/closet/${key}`)}
+      />
+    );
   }
 
   return (
     <ClosetCategoryView
       category={selectedCategory}
+      seasonTheme={seasonTheme}
       items={filteredItems}
       likedItemIds={likedItemIds}
       form={form}
@@ -334,11 +357,11 @@ function ClosetPage() {
   );
 }
 
-function ClosetHomeView({ onSelect }) {
+function ClosetHomeView({ seasonTheme, onSelect }) {
   return (
-    <HomePage>
+    <HomePage $background={seasonTheme.background} $primary={seasonTheme.primary}>
       <WardrobeCard>
-        <WardrobeTitle>CLOSET</WardrobeTitle>
+        <WardrobeTitle>C L O S E T</WardrobeTitle>
         <WardrobeGrid>
           {closetCategories.map((category) => (
             <WardrobeCell
@@ -368,7 +391,8 @@ function CustomSelect({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const selectedOption = options.find((option) => option.value === value);
-  const selectedLabel = selectedOption?.label ?? '';
+  const selectedLabel =
+    spacedCategoryLabels[selectedOption?.label] ?? selectedOption?.label ?? '';
 
   const handleSelect = (nextValue) => {
     onChange(nextValue);
@@ -409,6 +433,7 @@ function CustomSelect({
 
 function ClosetCategoryView({
   category,
+  seasonTheme,
   items,
   likedItemIds,
   form,
@@ -443,13 +468,13 @@ function ClosetCategoryView({
   };
 
   return (
-    <Page>
+    <Page $background={seasonTheme.background} $primary={seasonTheme.primary}>
       <CategoryHeader>
-        <CategoryTitle>closet</CategoryTitle>
+        <CategoryTitle>C L O S E T</CategoryTitle>
         <CustomSelect
           ariaLabel="옷 종류 선택"
           value={category.key}
-          width="142px"
+          width="96px"
           options={[
             { value: allCategory.key, label: allCategory.label },
             ...closetCategories.map((closetCategory) => ({
@@ -469,13 +494,10 @@ function ClosetCategoryView({
 
             return (
               <ClosetCard key={item.id}>
-                {item.imageUrl ? (
-                  <ItemImage src={item.imageUrl} alt={item.name} />
-                ) : (
-                  <NameFallback aria-label={item.name}>
-                    {item.name}
-                  </NameFallback>
-                )}
+                <ItemImage
+                  src={item.imageUrl || defaultClothingImage}
+                  alt={item.name}
+                />
                 <LikeButton
                   type="button"
                   aria-label={`${item.name} 좋아요${isLiked ? ' 해제' : ''}`}
@@ -483,13 +505,14 @@ function ClosetCategoryView({
                   $active={isLiked}
                   onClick={() => onToggleLikedItem(item.id)}
                 >
-                  ♥
+                  <HeartIcon />
                 </LikeButton>
                 <ColorDotRow aria-label="선택한 색상">
                   {itemColors.map((color, index) => (
                     <ColorDot
                       key={`${item.id}-${color}-${index}`}
                       $color={color}
+                      $isLight={isLightColor(color)}
                     />
                   ))}
                 </ColorDotRow>
@@ -686,13 +709,25 @@ function ClosetCategoryView({
   );
 }
 
+function HeartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 21C10.7 19.8 9.4 18.8 8.2 17.8C4.6 14.8 2 12.6 2 8.9C2 6.1 4.2 4 7 4C8.6 4 10.2 4.8 11.1 6.1H12.9C13.8 4.8 15.4 4 17 4C19.8 4 22 6.1 22 8.9C22 12.6 19.4 14.8 15.8 17.8C14.6 18.8 13.3 19.8 12 21Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 const HomePage = styled.section`
   min-height: calc(100% + 44px);
   display: grid;
   align-items: center;
   margin: -20px -20px -24px;
   padding: 26px 20px 34px;
-  background: ${({ theme }) => theme.colors.seasons.winter.background};
+  background: ${({ $background }) => $background};
+  --season-primary: ${({ $primary }) => $primary};
 `;
 
 const WardrobeCard = styled.section`
@@ -703,15 +738,16 @@ const WardrobeCard = styled.section`
   padding: 28px 32px 34px;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 22px rgba(49, 50, 111, 0.08);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--season-primary) 14%, transparent);
 `;
 
 const WardrobeTitle = styled.h2`
   margin: 0;
-  color: #5b6068;
-  font-size: 22px;
-  font-weight: 500;
-  letter-spacing: 9px;
+  color: #43474F;
+  font-family: 'KyoboHandwriting2025lyb', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
   text-align: center;
 `;
 
@@ -740,7 +776,7 @@ const WardrobeCell = styled.button`
   overflow: hidden;
 
   &:focus-visible {
-    outline: 3px solid ${({ theme }) => theme.colors.seasons.spring.primary};
+    outline: 3px solid var(--season-primary);
     outline-offset: -6px;
     z-index: 1;
   }
@@ -794,10 +830,11 @@ const Page = styled.section`
   position: relative;
   display: grid;
   align-content: start;
-  gap: 16px;
+  gap: 18px;
   margin: -20px -20px -24px;
-  padding: 20px 20px 40px;
-  background: ${({ theme }) => theme.colors.seasons.winter.background};
+  padding: 28px 20px 40px;
+  background: ${({ $background }) => $background};
+  --season-primary: ${({ $primary }) => $primary};
 `;
 
 const CategoryHeader = styled.div`
@@ -808,44 +845,28 @@ const CategoryHeader = styled.div`
 `;
 
 const CategoryTitle = styled.h2`
-  margin: 0;
-  color: #111827;
-  font-size: 26px;
-  font-weight: 700;
-  text-transform: uppercase;
+  margin: 0 0 4px 8px;
+  color: #43474F;
+  font-family: 'KyoboHandwriting2025lyb', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
 `;
 
 const ClosetGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 12px 10px;
 `;
 
 const ClosetCard = styled.article`
   position: relative;
   min-width: 0;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 1 / 1.28;
   overflow: hidden;
-  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.05);
-`;
-
-const NameFallback = styled.div`
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 44px 20px;
-  background: #ffffff;
-  color: #111827;
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1.35;
-  text-align: center;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--season-primary) 18%, transparent);
 `;
 
 const ItemImage = styled.img`
@@ -857,17 +878,22 @@ const ItemImage = styled.img`
 
 const LikeButton = styled.button`
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 30px;
-  height: 30px;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   background: transparent;
-  color: ${({ $active, theme }) =>
-    $active ? theme.colors.seasons.winter.primary : '#cbd5e1'};
-  font-size: 22px;
+  color: ${({ $active }) => ($active ? 'var(--season-primary)' : '#c7c7c7')};
+  font-size: 0;
   line-height: 1;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
 `;
 
 const ColorDotRow = styled.div`
@@ -882,10 +908,11 @@ const ColorDotRow = styled.div`
 `;
 
 const ColorDot = styled.span`
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: 1px solid rgba(17, 24, 39, 0.16);
+  border: ${({ $isLight }) =>
+    $isLight ? '0.3px solid var(--season-primary)' : '0'};
   background: ${({ $color }) => $color};
   box-shadow: 0 2px 8px rgba(17, 24, 39, 0.08);
 `;
@@ -916,25 +943,25 @@ const EmptyText = styled.p`
 
 const FloatingAddButton = styled.button`
   position: fixed;
-  right: max(20px, calc((100vw - 390px) / 2 + 20px));
+  right: max(22px, calc((100vw - 390px) / 2 + 22px));
   bottom: calc(
-    ${({ theme }) => theme.heights.bottomNav} + env(safe-area-inset-bottom) + 18px
+    ${({ theme }) => theme.heights.bottomNav} + env(safe-area-inset-bottom) + 10px
   );
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
   display: grid;
   place-items: center;
   z-index: 5;
   border-radius: 50%;
-  background: ${({ theme }) => theme.colors.seasons.winter.primary};
-  box-shadow: 0 12px 24px rgba(49, 50, 111, 0.28);
+  background: var(--season-primary);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--season-primary) 32%, transparent);
 
   &::before,
   &::after {
     content: '';
     position: absolute;
-    width: 24px;
-    height: 4px;
+    width: 36px;
+    height: 6px;
     border-radius: 999px;
     background: #ffffff;
   }
@@ -1033,10 +1060,9 @@ const OptionButton = styled.button`
   height: 36px;
   border: 1px solid
     ${({ $active, theme }) =>
-      $active ? theme.colors.seasons.winter.primary : theme.colors.border};
+      $active ? 'var(--season-primary)' : theme.colors.border};
   border-radius: 8px;
-  background: ${({ $active, theme }) =>
-    $active ? theme.colors.seasons.winter.primary : '#ffffff'};
+  background: ${({ $active }) => ($active ? 'var(--season-primary)' : '#ffffff')};
   color: ${({ $active }) => ($active ? '#ffffff' : '#4b5563')};
   font-size: 13px;
   font-weight: 700;
@@ -1060,15 +1086,18 @@ const ColorSelectButton = styled.button`
   border-radius: 8px;
   background: #ffffff;
   color: #111827;
+  font-family: 'KyoboHandwriting2025lyb', sans-serif;
   font-size: 14px;
   text-align: left;
 `;
 
 const ColorSelectText = styled.span`
   min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 `;
 
 const ColorSelectChevron = styled.span`
@@ -1107,12 +1136,11 @@ const ColorOptionItem = styled.button`
   gap: 8px;
   padding: 0 10px;
   border: 1px solid
-    ${({ $active, theme }) =>
-      $active ? theme.colors.seasons.winter.primary : 'transparent'};
+    ${({ $active }) => ($active ? 'var(--season-primary)' : 'transparent')};
   border-radius: 8px;
   background: ${({ $active }) => ($active ? '#f0f1ff' : '#ffffff')};
-  color: ${({ $active, theme }) =>
-    $active ? theme.colors.seasons.winter.primary : '#4b5563'};
+  color: ${({ $active }) => ($active ? 'var(--season-primary)' : '#4b5563')};
+  font-family: 'KyoboHandwriting2025lyb', sans-serif;
   font-size: 13px;
   font-weight: 700;
   text-align: left;
@@ -1127,7 +1155,7 @@ const ColorCheck = styled.span`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
   background: #ffffff;
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
+  color: var(--season-primary);
   font-size: 12px;
   font-weight: 800;
 `;
@@ -1162,7 +1190,7 @@ const SelectedColorTag = styled.span`
   padding: 4px 8px;
   border-radius: 999px;
   background: #f2f4f7;
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
+  color: var(--season-primary);
   font-size: 11px;
   font-weight: 700;
 `;
@@ -1198,7 +1226,7 @@ const CancelButton = styled.button`
 const SaveButton = styled.button`
   height: 44px;
   border-radius: 8px;
-  background: ${({ theme }) => theme.colors.seasons.winter.primary};
+  background: var(--season-primary);
   color: #ffffff;
   font-size: 15px;
   font-weight: 700;

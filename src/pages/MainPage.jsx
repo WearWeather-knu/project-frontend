@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useTheme } from 'styled-components';
 import styled from 'styled-components';
 import outfitImage from '@/assets/hero.png';
 import OutfitCarousel from '@/components/main/OutfitCarousel';
@@ -7,6 +6,7 @@ import RetryButton from '@/components/main/RetryButton';
 import WeatherInfoCard from '@/components/main/WeatherInfoCard';
 import { fetchWeather } from '@/api/weather.js';
 import { fetchRecommend } from '../api/recommend';
+import { useSeasonTheme } from '@/store/seasonThemeStore';
 
 const outfits = [
   {
@@ -77,11 +77,9 @@ const outfits = [
 ];
 
 function MainPage() {
-  const theme = useTheme();
-  const season = 'winter'; // 예시로 겨울 테마를 사용
   const [temperature, setTemperature] = useState(0);
   const [location, setLocation] = useState('');
-  const seasonTheme = theme.colors.seasons[season];
+  const { seasonTheme } = useSeasonTheme();
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -139,6 +137,7 @@ const Page = styled.section`
 
 const Question = styled.p`
   margin: 0;
+  font-family: 'KyoboHandwriting2025lyb', sans-serif;
   color: ${({ theme }) => theme.colors.text};
   font-size: 18px;
   font-weight: 500;
@@ -146,6 +145,7 @@ const Question = styled.p`
 
 const WeatherTip = styled.p`
   margin: 4px 0 8px;
+  font-family: 'KyoboHandwriting2025lyb', sans-serif;
   color: ${({ theme }) => theme.colors.text};
   font-size: 18px;
 `;

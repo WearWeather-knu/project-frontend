@@ -1,29 +1,28 @@
 import styled from 'styled-components';
+import { useSeasonTheme } from '@/store/seasonThemeStore';
 
 const weatherDays = [
   {
     id: 'yesterday',
     label: '어제',
-    date: '6월 22일',
+    date: '06.22',
     temp: 21,
     feelsLike: 22,
     humidity: 58,
     wind: 2.1,
     condition: '구름 많음',
     outfit: '얇은 니트와 가벼운 자켓',
-    accent: '#8A93A3',
   },
   {
     id: 'today',
     label: '오늘',
-    date: '6월 23일',
+    date: '06.23',
     temp: 24,
     feelsLike: 25,
     humidity: 66,
     wind: 2.8,
     condition: '맑음',
     outfit: '반팔 셔츠와 얇은 팬츠',
-    accent: '#31326F',
   },
 ];
 
@@ -41,7 +40,7 @@ const getSignedText = (value, unit) => {
 const comparisonMetrics = [
   {
     label: '기온',
-    value: getSignedText(today.temp - yesterday.temp, '°'),
+    value: getSignedText(today.temp - yesterday.temp, '℃'),
     summary:
       today.temp > yesterday.temp
         ? '오늘이 어제보다 더워요.'
@@ -51,7 +50,7 @@ const comparisonMetrics = [
   },
   {
     label: '체감',
-    value: getSignedText(today.feelsLike - yesterday.feelsLike, '°'),
+    value: getSignedText(today.feelsLike - yesterday.feelsLike, '℃'),
     summary:
       today.feelsLike > yesterday.feelsLike
         ? '몸으로 느끼는 온도도 더 높아요.'
@@ -82,29 +81,36 @@ const comparisonMetrics = [
 ];
 
 function ComparisonPage() {
+  const { seasonTheme } = useSeasonTheme();
+
   return (
-    <Page>
+    <Page $background={seasonTheme.background} $primary={seasonTheme.primary}>
       <TitleGroup>
-        <Title>WEATHER</Title>
+        <Title>W E A T H E R</Title>
       </TitleGroup>
 
       <WeatherGrid>
         {weatherDays.map((day) => (
           <WeatherCard
             key={day.id}
-            $accent={day.accent}
-            $primary={day.id === 'today'}
+            $primary={seasonTheme.primary}
+            $muted={day.id === 'yesterday'}
           >
             <CardHeader>
-              <Badge $accent={day.accent}>{day.label}</Badge>
+              <Badge $primary={seasonTheme.primary} $muted={day.id === 'yesterday'}>
+                {day.id === 'yesterday' ? 'YESTERDAY' : 'TODAY'}
+              </Badge>
               <DateText>{day.date}</DateText>
             </CardHeader>
             <Condition>{day.condition}</Condition>
-            <Temperature>{day.temp}°</Temperature>
+            <WeatherMain>
+              <Temperature>{day.temp}℃</Temperature>
+              <WeatherIcon $primary={seasonTheme.primary} $cloud={day.id === 'yesterday'} />
+            </WeatherMain>
             <MetaGrid>
               <MetaItem>
                 <MetaLabel>체감</MetaLabel>
-                <MetaValue>{day.feelsLike}°</MetaValue>
+                <MetaValue>{day.feelsLike}℃</MetaValue>
               </MetaItem>
               <MetaItem>
                 <MetaLabel>습도</MetaLabel>
@@ -115,8 +121,11 @@ function ComparisonPage() {
                 <MetaValue>{day.wind}m/s</MetaValue>
               </MetaItem>
             </MetaGrid>
-            <OutfitBox>
-              <MetaLabel>추천 옷차림</MetaLabel>
+            <OutfitBox
+              $primary={seasonTheme.primary}
+              $muted={day.id === 'yesterday'}
+            >
+              <OutfitLabel>추천 옷차림</OutfitLabel>
               <Outfit>{day.outfit}</Outfit>
             </OutfitBox>
           </WeatherCard>
@@ -130,7 +139,7 @@ function ComparisonPage() {
             <MetricItem key={metric.label}>
               <MetricHead>
                 <MetricLabel>{metric.label}</MetricLabel>
-                <MetricValue>{metric.value}</MetricValue>
+                <MetricValue $primary={seasonTheme.primary}>{metric.value}</MetricValue>
               </MetricHead>
               <MetricSummary>{metric.summary}</MetricSummary>
             </MetricItem>
@@ -142,9 +151,13 @@ function ComparisonPage() {
 }
 
 const Page = styled.section`
+  min-height: calc(100% + 44px);
   display: grid;
-  gap: 18px;
-  padding-bottom: 8px;
+  gap: 20px;
+  margin: -20px -20px -24px;
+  padding: 28px 20px 32px;
+  background: ${({ $background }) => $background};
+  --season-primary: ${({ $primary }) => $primary};
 `;
 
 const TitleGroup = styled.div`
@@ -152,45 +165,30 @@ const TitleGroup = styled.div`
   gap: 6px;
 `;
 
-const Eyebrow = styled.p`
-  margin: 0;
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
-  font-size: 13px;
-  font-weight: 700;
-`;
-
 const Title = styled.h2`
-  margin: 0;
-  color: #111827;
-  font-size: 24px;
-  font-weight: 700;
-`;
-
-const Description = styled.p`
-  margin: 0;
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 14px;
-  line-height: 1.5;
+  margin: 0 0 4px 22px;
+  color: #43474F;
+  font-family: 'KyoboHandwriting2025lyb', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
 `;
 
 const WeatherGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-
-  @media (max-width: 420px) {
-    grid-template-columns: 1fr;
-  }
+  gap: 8px;
 `;
 
 const WeatherCard = styled.article`
   display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid ${({ $accent }) => `${$accent}2e`};
+  gap: 0;
+  min-width: 0;
+  padding: 14px 10px 12px;
   border-radius: 8px;
-  background: ${({ $primary }) => ($primary ? '#fbfbff' : '#ffffff')};
-  box-shadow: 0 8px 20px rgba(49, 50, 111, 0.08);
+  background: ${({ $muted }) =>
+    $muted ? 'rgba(255, 255, 255, 0.4)' : '#ffffff'};
+  box-shadow: 0 8px 22px ${({ $primary }) => `${$primary}24`};
 `;
 
 const CardHeader = styled.div`
@@ -198,98 +196,163 @@ const CardHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin-bottom: 28px;
 `;
 
 const Badge = styled.span`
-  padding: 5px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
-  background: ${({ $accent }) => `${$accent}14`};
-  color: ${({ $accent }) => $accent};
-  font-size: 12px;
-  font-weight: 700;
+  background: ${({ $primary, $muted }) => ($muted ? '#f2f4f7' : `${$primary}24`)};
+  color: ${({ $primary, $muted }) => ($muted ? '#9ca3af' : $primary)};
+  font-size: 10px;
+  font-weight: 400;
 `;
 
 const DateText = styled.span`
-  color: #8a93a3;
+  color: #43474F;
   font-size: 12px;
 `;
 
 const Condition = styled.h3`
   margin: 0;
-  color: #111827;
-  font-size: 18px;
+  margin-bottom: -3px;
+  transform: translateX(10px);
+  color: #43474F;
+  font-size: 10px;
+  font-weight: 400;
+`;
+
+const WeatherMain = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 12px;
 `;
 
 const Temperature = styled.p`
   margin: 0;
-  color: #111827;
-  font-size: 44px;
+  transform: translateX(10px);
+  color: #448662;
+  font-family: 'Coda Caption', sans-serif;
+  font-size: 32px;
   font-weight: 700;
   line-height: 1;
+`;
+
+function WeatherIcon({ $primary, $cloud }) {
+  return $cloud ? (
+    <IconSvg width="56" height="56" viewBox="0 0 45 45" fill="none">
+      <path
+        d="M13.5 30.5H31.8C35.7 30.5 38.8 27.4 38.8 23.6C38.8 19.8 35.7 16.8 31.9 16.8H31.2C30.1 12.8 26.4 9.9 22 9.9C16.9 9.9 12.7 13.9 12.4 19C8.9 19.4 6.2 21.8 6.2 25C6.2 28.1 9.4 30.5 13.5 30.5Z"
+        fill={$primary}
+        opacity="0.92"
+      />
+      <path d="M9 37H35" stroke={$primary} strokeWidth="3" strokeLinecap="round" />
+      <path d="M14 42H30" stroke={$primary} strokeWidth="3" strokeLinecap="round" />
+    </IconSvg>
+  ) : (
+    <IconSvg width="56" height="56" viewBox="0 0 45 45" fill="none">
+      <circle cx="22.5" cy="22.5" r="8" fill={$primary} opacity="0.92" />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((rotate) => (
+        <path
+          key={rotate}
+          d="M22.5 5.5V10.5"
+          stroke={$primary}
+          strokeWidth="3"
+          strokeLinecap="round"
+          transform={`rotate(${rotate} 22.5 22.5)`}
+        />
+      ))}
+    </IconSvg>
+  );
+}
+
+const IconSvg = styled.svg`
+  flex: 0 0 auto;
+  transform: translateY(-6px);
 `;
 
 const MetaGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  justify-items: center;
+  padding: 0 4px;
+  transform: translateX(-2px);
+  margin-bottom: 14px;
 `;
 
 const MetaItem = styled.div`
   display: grid;
   gap: 3px;
+  justify-items: start;
   min-width: 0;
+  width: max-content;
+  text-align: left;
 `;
 
 const MetaLabel = styled.span`
   color: #8a93a3;
-  font-size: 12px;
+  font-size: 8px;
 `;
 
 const MetaValue = styled.strong`
   color: #111827;
-  font-size: 13px;
+  font-size: 10px;
 `;
 
 const OutfitBox = styled.div`
   display: grid;
-  gap: 4px;
-  padding: 12px;
+  gap: 9px;
+  min-height: 58px;
+  align-content: center;
+  padding: 10px 8px;
   border-radius: 8px;
-  background: #f6f7fb;
+  background: ${({ $muted, $primary }) =>
+    $muted ? 'rgba(199, 199, 199, 0.2)' : `${$primary}24`};
+  text-align: center;
+`;
+
+const OutfitLabel = styled.span`
+  color: #448662;
+  font-size: 8px;
 `;
 
 const Outfit = styled.p`
   margin: 0;
   color: #111827;
-  font-size: 14px;
+  font-size: 10px;
   line-height: 1.4;
 `;
 
 const SummaryCard = styled.section`
   display: grid;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 8px;
-  background: ${({ theme }) => theme.colors.seasons.winter.background};
+  gap: 14px;
 `;
 
 const SectionTitle = styled.h3`
-  margin: 0;
-  color: #111827;
-  font-size: 18px;
+  margin: 16px 0 4px 22px;
+  color: #43474F;
+  font-size: 14px;
+  font-weight: 400;
 `;
 
 const MetricList = styled.div`
   display: grid;
-  gap: 8px;
+  gap: 12px;
 `;
 
 const MetricItem = styled.article`
   display: grid;
-  gap: 5px;
-  padding: 12px;
+  align-content: center;
+  gap: 2px;
+  min-height: 58px;
+  padding: 13px 18px 17px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--season-primary) 16%, transparent);
 `;
 
 const MetricHead = styled.div`
@@ -301,20 +364,25 @@ const MetricHead = styled.div`
 
 const MetricLabel = styled.span`
   color: #4b5563;
-  font-size: 13px;
-  font-weight: 700;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
 `;
 
 const MetricValue = styled.strong`
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
-  font-size: 17px;
+  transform: translateY(10px);
+  color: ${({ $primary }) => $primary};
+  font-family: 'Pretendard', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
 `;
 
 const MetricSummary = styled.p`
   margin: 0;
   color: ${({ theme }) => theme.colors.text};
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.25;
 `;
 
 export default ComparisonPage;
