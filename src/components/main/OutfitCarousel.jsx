@@ -8,6 +8,7 @@ const CARD_GAP = 32;
 function OutfitCarousel({ items, seasonTheme }) {
   const trackRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [flippedCardIds, setFlippedCardIds] = useState([]);
   const isDragging = useRef(false);
   const hasDragged = useRef(false);
   const startX = useRef(0);
@@ -74,6 +75,14 @@ function OutfitCarousel({ items, seasonTheme }) {
     }
   };
 
+  const toggleCard = (id) => {
+    setFlippedCardIds((currentIds) =>
+      currentIds.includes(id)
+        ? currentIds.filter((currentId) => currentId !== id)
+        : [...currentIds, id],
+    );
+  };
+
   return (
     <Container>
       <Viewport>
@@ -92,7 +101,10 @@ function OutfitCarousel({ items, seasonTheme }) {
               <OutfitCard
                 imageSrc={item.imageSrc}
                 title={item.title}
+                details={item.details}
                 color={seasonTheme.primary}
+                isFlipped={flippedCardIds.includes(item.id)}
+                onToggle={() => toggleCard(item.id)}
               />
             </Slide>
           ))}

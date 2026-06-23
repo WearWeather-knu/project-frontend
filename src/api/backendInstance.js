@@ -2,7 +2,7 @@ import axios from 'axios';
 import { supabase } from './auth/supabaseClient';
 
 const backendInstance = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL,
+  baseURL: import.meta.env.VITE_BACKEND_URL?.trim(),
   timeout: 10000,
 });
 

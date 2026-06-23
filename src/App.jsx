@@ -8,7 +8,7 @@ import HistoryPage from './pages/HistoryPage';
 import { useEffect, useState } from 'react';
 import { supabase } from './api/auth/supabaseClient';
 import PrivateRoute from './components/PrivateRoute';
-import { useAuthStore } from './store/authStore.js';
+import { loadDevSession, useAuthStore } from './store/authStore.js';
 import AppLayout from './components/AppLayout';
 import MobileFrame from './components/MobileFrame';
 import SplashScreen from './components/SplashScreen';
@@ -20,14 +20,14 @@ function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      setSession(data.session ?? loadDevSession());
       // console.log(data.session?.access_token);
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setSession(session);
+        setSession(session ?? loadDevSession());
       },
     );
     return () => listener.subscription.unsubscribe();
@@ -61,6 +61,7 @@ function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<MainPage />} />
               <Route path="/closet" element={<ClosetPage />} />
+              <Route path="/closet/:category" element={<ClosetPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/comparison" element={<ComparisonPage />} />
               <Route path="/history" element={<HistoryPage />} />

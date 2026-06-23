@@ -14,8 +14,8 @@ function BottomTabBar() {
         <TabLink key={tab.to} to={tab.to} end={tab.end} $isHome={tab.label === '홈'}>
           {({ isActive }) =>
             tab.label === '홈' ? (
-              <LogoWrapper>
-                <MainLogo isActive={isActive} />
+              <LogoWrapper $isActive={isActive}>
+                <MainLogo />
               </LogoWrapper>
             ) : (
               <TabContent>
@@ -68,11 +68,32 @@ const TabContent = styled.div`
 
 const LogoWrapper = styled.div`
   transform: translateY(-15px);
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: ${({ $isActive }) =>
+    $isActive ? 'home-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'};
+
+  ${TabLink}:active & {
+    transform: translateY(-15px) scale(0.88);
+  }
+
+  @keyframes home-pop {
+    0% {
+      transform: translateY(-15px) scale(0.92);
+    }
+
+    70% {
+      transform: translateY(-15px) scale(1.025);
+    }
+
+    100% {
+      transform: translateY(-15px) scale(1);
+    }
+  }
 `;
 
 export default BottomTabBar;
 
-function MainLogo({ isActive }) {
+function MainLogo() {
   return (
     <svg
       width="85"
@@ -86,7 +107,7 @@ function MainLogo({ isActive }) {
       </g>
       <path
         d="M56.2251 35.425L59.9001 51.25L46.0001 42.85L32.1001 51.25L35.7501 35.425L23.5001 24.75L39.6751 23.4L46.0001 8.5L52.3251 23.4L68.5001 24.75L56.2251 35.425ZM16.0001 37.075C16.4751 37.075 16.9501 36.925 17.3751 36.65L25.3751 31.375L21.4501 27.975L14.6251 32.475C13.4726 33.225 13.1526 34.75 13.9001 36C14.4001 36.675 15.2001 37.075 16.0001 37.075ZM13.9001 59.875C14.4001 60.6 15.2001 61 16.0001 61C16.4751 61 16.9501 60.875 17.3751 60.6L27.6501 53.825L28.5001 50.4L29.2751 46.775L14.6251 56.4C13.4726 57.175 13.1526 58.725 13.9001 59.875ZM14.6251 44.45C14.073 44.8126 13.6868 45.379 13.551 46.0255C13.4152 46.6719 13.5407 47.3458 13.9001 47.9C14.4001 48.65 15.2001 49.025 16.0001 49.025C16.4751 49.025 16.9501 48.9 17.3751 48.625L30.9251 39.75L31.6001 36.775L29.3001 34.75L14.6251 44.45Z"
-        fill={isActive ? '#FFEE00' : 'white'}
+        fill="white"
       />
       <defs>
         <filter
