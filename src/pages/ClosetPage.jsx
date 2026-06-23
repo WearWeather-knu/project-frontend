@@ -105,26 +105,6 @@ const colorMap = {
 
 const fallbackColor = '#D8DEE9';
 
-const getSwatchBackground = (colors = []) => {
-  const usableColors = colors.filter(Boolean);
-
-  if (usableColors.length <= 1) {
-    return usableColors[0] ?? fallbackColor;
-  }
-
-  const step = 100 / usableColors.length;
-  const stops = usableColors
-    .map((color, index) => {
-      const start = step * index;
-      const end = step * (index + 1);
-
-      return `${color} ${start}% ${end}%`;
-    })
-    .join(', ');
-
-  return `linear-gradient(90deg, ${stops})`;
-};
-
 const initialForm = {
   name: '',
   category: '상의',
@@ -193,6 +173,7 @@ function ClosetPage() {
   const selectedCategory =
     category === allCategory.key ? allCategory : category ? categoryByKey[category] : null;
   const [items, setItems] = useState(closetItems);
+  const [likedItemIds, setLikedItemIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
@@ -275,6 +256,14 @@ function ClosetPage() {
     });
   };
 
+  const toggleLikedItem = (itemId) => {
+    setLikedItemIds((currentLikedItemIds) =>
+      currentLikedItemIds.includes(itemId)
+        ? currentLikedItemIds.filter((currentItemId) => currentItemId !== itemId)
+        : [...currentLikedItemIds, itemId],
+    );
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -329,6 +318,7 @@ function ClosetPage() {
     <ClosetCategoryView
       category={selectedCategory}
       items={filteredItems}
+      likedItemIds={likedItemIds}
       form={form}
       error={error}
       isModalOpen={isModalOpen}
@@ -338,6 +328,7 @@ function ClosetPage() {
       onUpdateForm={updateForm}
       onToggleSeason={toggleSeason}
       onToggleColor={toggleColor}
+      onToggleLikedItem={toggleLikedItem}
       onSubmit={handleSubmit}
     />
   );
@@ -419,6 +410,7 @@ function CustomSelect({
 function ClosetCategoryView({
   category,
   items,
+  likedItemIds,
   form,
   error,
   isModalOpen,
@@ -428,6 +420,7 @@ function ClosetCategoryView({
   onUpdateForm,
   onToggleSeason,
   onToggleColor,
+  onToggleLikedItem,
   onSubmit,
 }) {
   const [isColorSelectOpen, setIsColorSelectOpen] = useState(false);
@@ -470,25 +463,39 @@ function ClosetCategoryView({
 
       {items.length > 0 ? (
         <ClosetGrid>
-          {items.map((item) => (
-            <ClosetCard key={item.id}>
-              {item.imageUrl ? (
-                <ItemImage src={item.imageUrl} alt={item.name} />
-              ) : (
-                <ColorSwatch $colors={item.colors ?? [item.color]} />
-              )}
-              <ItemInfo>
-                <Category>{item.category}</Category>
-                <ItemName>{item.name}</ItemName>
-                <TagRow>
-                  {item.seasons.map((season) => (
-                    <Tag key={season}>{season}</Tag>
+          {items.map((item) => {
+            const itemColors = item.colors ?? [item.color ?? fallbackColor];
+            const isLiked = likedItemIds.includes(item.id);
+
+            return (
+              <ClosetCard key={item.id}>
+                {item.imageUrl ? (
+                  <ItemImage src={item.imageUrl} alt={item.name} />
+                ) : (
+                  <NameFallback aria-label={item.name}>
+                    {item.name}
+                  </NameFallback>
+                )}
+                <LikeButton
+                  type="button"
+                  aria-label={`${item.name} 좋아요${isLiked ? ' 해제' : ''}`}
+                  aria-pressed={isLiked}
+                  $active={isLiked}
+                  onClick={() => onToggleLikedItem(item.id)}
+                >
+                  ♥
+                </LikeButton>
+                <ColorDotRow aria-label="선택한 색상">
+                  {itemColors.map((color, index) => (
+                    <ColorDot
+                      key={`${item.id}-${color}-${index}`}
+                      $color={color}
+                    />
                   ))}
-                </TagRow>
-                <WeatherTag>{item.weather}</WeatherTag>
-              </ItemInfo>
-            </ClosetCard>
-          ))}
+                </ColorDotRow>
+              </ClosetCard>
+            );
+          })}
         </ClosetGrid>
       ) : (
         <EmptyState>
@@ -685,9 +692,7 @@ const HomePage = styled.section`
   align-items: center;
   margin: -20px -20px -24px;
   padding: 26px 20px 34px;
-  background:
-    radial-gradient(circle at 5% 45%, rgba(180, 255, 191, 0.38), transparent 34%),
-    linear-gradient(180deg, #ffffff 0%, #f5fff7 52%, #edffd9 100%);
+  background: ${({ theme }) => theme.colors.seasons.winter.background};
 `;
 
 const WardrobeCard = styled.section`
@@ -785,12 +790,14 @@ const WardrobeHanger = styled.span`
 `;
 
 const Page = styled.section`
-  min-height: 100%;
+  min-height: calc(100% + 44px);
   position: relative;
   display: grid;
   align-content: start;
   gap: 16px;
-  padding-bottom: 16px;
+  margin: -20px -20px -24px;
+  padding: 20px 20px 40px;
+  background: ${({ theme }) => theme.colors.seasons.winter.background};
 `;
 
 const CategoryHeader = styled.div`
@@ -815,68 +822,72 @@ const ClosetGrid = styled.div`
 `;
 
 const ClosetCard = styled.article`
+  position: relative;
   min-width: 0;
-  display: grid;
-  gap: 10px;
-  padding: 12px;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 8px 18px rgba(17, 24, 39, 0.05);
 `;
 
-const ColorSwatch = styled.div`
-  height: 78px;
-  border-radius: 8px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background: ${({ $colors }) => getSwatchBackground($colors)};
+const NameFallback = styled.div`
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 44px 20px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 `;
 
 const ItemImage = styled.img`
   width: 100%;
-  height: 78px;
-  border-radius: 8px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  object-fit: cover;
-  background: #f4f5f7;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
 `;
 
-const ItemInfo = styled.div`
-  min-width: 0;
+const LikeButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
   display: grid;
-  gap: 7px;
+  place-items: center;
+  background: transparent;
+  color: ${({ $active, theme }) =>
+    $active ? theme.colors.seasons.winter.primary : '#cbd5e1'};
+  font-size: 22px;
+  line-height: 1;
 `;
 
-const Category = styled.span`
-  color: ${({ theme }) => theme.colors.seasons.winter.primary};
-  font-size: 12px;
-  font-weight: 700;
-`;
-
-const ItemName = styled.h3`
-  margin: 0;
-  color: #111827;
-  font-size: 16px;
-  line-height: 1.3;
-`;
-
-const TagRow = styled.div`
+const ColorDotRow = styled.div`
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: calc(100% - 20px);
 `;
 
-const Tag = styled.span`
-  padding: 4px 7px;
-  border-radius: 999px;
-  background: #f2f4f7;
-  color: #4b5563;
-  font-size: 11px;
-`;
-
-const WeatherTag = styled.span`
-  color: #6b7280;
-  font-size: 12px;
+const ColorDot = styled.span`
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(17, 24, 39, 0.16);
+  background: ${({ $color }) => $color};
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.08);
 `;
 
 const EmptyState = styled.div`
