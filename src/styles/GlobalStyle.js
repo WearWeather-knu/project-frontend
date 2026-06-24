@@ -3,8 +3,6 @@ import '@fontsource/coda-caption';
 import '@fontsource/duru-sans';
 
 const GlobalStyle = createGlobalStyle`
-  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css');
-
   @font-face {
     font-family: 'KyoboHandwriting2025lyb';
     src: url('/KyoboHandwriting2025lyb.otf') format('opentype');
@@ -33,7 +31,6 @@ const GlobalStyle = createGlobalStyle`
     color: #111827;
     font-family:
       'Duru Sans',
-      'Pretendard',
       -apple-system,
       BlinkMacSystemFont,
       "Segoe UI",

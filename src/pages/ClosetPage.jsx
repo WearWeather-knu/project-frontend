@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
+import { useClothesStore } from '@/store/clothesStore';
 import closetArtwork from '@/assets/CLOSET.png';
 import {
-  getClothes,
   previewClothesImport,
   importClothes,
   updateClothesFavorite,
@@ -441,11 +441,39 @@ function ClosetPage() {
   const { seasonTheme } = useSeasonTheme();
   const selectedCategory =
     category === allCategory.key ? allCategory : category ? categoryByKey[category] : null;
-  const [items, setItems] = useState([]);
-  const [clothesLoading, setClothesLoading] = useState(true);
-  const [likedItemIds, setLikedItemIds] = useState([]);
-  const [favoritePendingItemIds, setFavoritePendingItemIds] = useState([]);
-  const [closetError, setClosetError] = useState('');
+  const items = useClothesStore((state) => state.items);
+  const clothesLoading = useClothesStore((state) => state.loading);
+  const likedItemIds = useClothesStore((state) => state.likedItemIds);
+  const favoritePendingItemIds = useClothesStore(
+    (state) => state.favoritePendingItemIds,
+  );
+  const closetError = useClothesStore((state) => state.error);
+  const loadClothes = useClothesStore((state) => state.loadClothes);
+  const appendImportedClothes = useClothesStore(
+    (state) => state.appendImportedClothes,
+  );
+  const setClosetError = (nextError) => {
+    useClothesStore.setState((state) => ({
+      error:
+        typeof nextError === 'function' ? nextError(state.error) : nextError,
+    }));
+  };
+  const setFavoritePendingItemIds = (nextPendingItemIds) => {
+    useClothesStore.setState((state) => ({
+      favoritePendingItemIds:
+        typeof nextPendingItemIds === 'function'
+          ? nextPendingItemIds(state.favoritePendingItemIds)
+          : nextPendingItemIds,
+    }));
+  };
+  const setLikedItemIds = (nextLikedItemIds) => {
+    useClothesStore.setState((state) => ({
+      likedItemIds:
+        typeof nextLikedItemIds === 'function'
+          ? nextLikedItemIds(state.likedItemIds)
+          : nextLikedItemIds,
+    }));
+  };
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [importCategory, setImportCategory] = useState('OUTER');
@@ -498,24 +526,14 @@ function ClosetPage() {
   }, [closeModal, isModalOpen]);
 
   useEffect(() => {
-    getClothes()
-      .then(({ data }) => {
-        setItems(
-          data.map((cloth) => ({
-            id: cloth.clothesId,
-            name: cloth.name,
-            category: categoryApiToDisplay[cloth.category] ?? cloth.category,
-            imageUrl: cloth.imageUrl ?? '',
-            color: fallbackColor,
-          })),
-        );
-        setLikedItemIds(
-          data.filter((cloth) => cloth.favorite).map((cloth) => cloth.clothesId),
-        );
-      })
-      .catch(() => {})
-      .finally(() => setClothesLoading(false));
-  }, []);
+    loadClothes((cloth) => ({
+      id: cloth.clothesId,
+      name: cloth.name,
+      category: categoryApiToDisplay[cloth.category] ?? cloth.category,
+      imageUrl: cloth.imageUrl ?? '',
+      color: fallbackColor,
+    }));
+  }, [loadClothes]);
 
   if (category && !selectedCategory) {
     return <Navigate to="/closet" replace />;
@@ -703,7 +721,7 @@ function ClosetPage() {
         material: detailsPayload.material,
         weather: `${minTemp}°~${maxTemp}°`,
       };
-      setItems((prev) => [newItem, ...prev]);
+      appendImportedClothes(newItem);
       closeModal();
 
       const nextKey = Object.keys(categoryToApiEnum).find(

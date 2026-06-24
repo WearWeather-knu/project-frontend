@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import styled from 'styled-components';
 
 const detailRows = [
@@ -263,4 +264,4 @@ const Reason = styled.p`
   overflow-wrap: anywhere;
 `;
 
-export default OutfitCard;
+export default memo(OutfitCard);

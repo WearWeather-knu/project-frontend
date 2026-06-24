@@ -260,14 +260,8 @@ function ComparisonPage() {
     }
 
     try {
-      console.log('weather comparison request', {
-        location_name: comparisonLocation,
-      });
       const response = await getWeatherComparison(comparisonLocation);
       const responseData = response.data?.data ?? response.data;
-      console.log('weather comparison response', response);
-      console.log('weather comparison response.data', response.data);
-      console.log('weather comparison responseData', responseData);
 
       if (!isValidComparisonData(responseData)) {
         setError('비교할 날씨 데이터가 아직 없어요.');
@@ -277,12 +271,7 @@ function ComparisonPage() {
 
       setComparisonData(responseData);
       writeWeatherComparisonCache(responseData);
-    } catch (comparisonError) {
-      console.error('weather comparison error', comparisonError);
-      console.error(
-        'weather comparison error.response',
-        comparisonError.response,
-      );
+    } catch {
       setError('날씨 비교 정보를 불러오지 못했어요.');
       setComparisonData(null);
     } finally {

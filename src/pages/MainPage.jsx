@@ -7,6 +7,14 @@ import WeatherInfoCard from '@/components/main/WeatherInfoCard';
 import { fetchWeather } from '@/api/weather.js';
 import { fetchRecommend } from '../api/recommend';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
+import {
+  getWeatherId,
+  getWeatherRefreshSlot,
+  isValidWeatherData,
+  isValidWeatherId,
+  readMainWeatherCache,
+  writeMainWeatherCache,
+} from '@/utils/mainWeatherCache';
 
 const outfits = [
   {
@@ -76,36 +84,9 @@ const outfits = [
   },
 ];
 
-const MAIN_WEATHER_CACHE_KEY = 'wear-weather-main-weather';
 const MAIN_LOCATION_NAME = '대구광역시, 북구';
-const WEATHER_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const DEFAULT_RECOMMEND_STYLE = '여름 20대 남자 패션';
 
-const getWeatherRefreshSlot = (date = new Date()) => {
-  const slotStart = new Date(date);
-  const minutes = slotStart.getMinutes();
-  slotStart.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
-
-  return {
-    slotStartedAt: slotStart.getTime(),
-    nextRefreshAt: slotStart.getTime() + WEATHER_REFRESH_INTERVAL_MS,
-  };
-};
-
-const isValidWeatherId = (weatherId) =>
-  Number.isInteger(Number(weatherId)) && Number(weatherId) > 0;
-
-const isValidWeatherData = (data) =>
-  typeof data?.location === 'string' &&
-  Number.isFinite(Number(data?.temperature)) &&
-  isValidWeatherId(data?.weatherId);
-
-const getWeatherId = (data) => {
-  const weatherId = data?.weatherId ?? data?.weather_id ?? data?.id;
-  const numberWeatherId = Number(weatherId);
-
-  return isValidWeatherId(numberWeatherId) ? numberWeatherId : null;
-};
 
 const normalizeRecommendation = (recommendation) => {
   if (!recommendation) return null;
@@ -126,45 +107,6 @@ const normalizeRecommendation = (recommendation) => {
       reason: recommendation.description ?? '-',
     },
   };
-};
-
-const readMainWeatherCache = () => {
-  try {
-    const cachedValue = window.localStorage.getItem(MAIN_WEATHER_CACHE_KEY);
-
-    if (!cachedValue) return null;
-
-    const cachedPayload = JSON.parse(cachedValue);
-
-    if (
-      !Number.isFinite(cachedPayload?.slotStartedAt) ||
-      !Number.isFinite(cachedPayload?.nextRefreshAt) ||
-      !Object.hasOwn(cachedPayload?.data ?? {}, 'weatherId') ||
-      !isValidWeatherData(cachedPayload?.data)
-    ) {
-      window.localStorage.removeItem(MAIN_WEATHER_CACHE_KEY);
-      return null;
-    }
-
-    return cachedPayload;
-  } catch {
-    window.localStorage.removeItem(MAIN_WEATHER_CACHE_KEY);
-    return null;
-  }
-};
-
-const writeMainWeatherCache = (data) => {
-  try {
-    window.localStorage.setItem(
-      MAIN_WEATHER_CACHE_KEY,
-      JSON.stringify({
-        ...getWeatherRefreshSlot(),
-        data,
-      }),
-    );
-  } catch {
-    // localStorage can fail in private browsing or restricted environments.
-  }
 };
 
 const getCurrentPosition = () =>
@@ -240,9 +182,7 @@ function MainPage() {
       applyWeatherData(weatherData);
       writeMainWeatherCache(weatherData);
       scheduleNextWeatherLoad(nextRefreshAt);
-    } catch (error) {
-      console.error(error);
-
+    } catch {
       if (cachedPayload) {
         applyWeatherData(cachedPayload.data);
       }
@@ -288,9 +228,8 @@ function MainPage() {
       if (nextOutfits.length > 0) {
         setRecommendedOutfits(nextOutfits);
       }
-    } catch (error) {
+    } catch {
       if (options.shouldIgnore?.()) return;
-      console.error(error);
     } finally {
       if (!options.shouldIgnore?.()) {
         setIsRecommendationLoading(false);

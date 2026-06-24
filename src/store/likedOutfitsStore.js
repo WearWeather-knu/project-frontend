@@ -1,40 +1,72 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 const STORAGE_KEY = 'wear-weather-liked-outfits';
-const CHANGE_EVENT = 'wear-weather-liked-outfits-change';
+const fallbackStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
 
-function readLikedOutfits() {
-  if (typeof window === 'undefined') return [];
+const legacyAwareStorage = createJSONStorage(() => {
+  if (typeof window === 'undefined') return fallbackStorage;
 
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
+  return {
+    getItem: (name) => {
+      const storedValue = window.localStorage.getItem(name);
 
-function writeLikedOutfits(outfits) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(outfits));
-  window.dispatchEvent(new Event(CHANGE_EVENT));
-}
+      if (!storedValue) return null;
+
+      try {
+        const parsedValue = JSON.parse(storedValue);
+
+        if (Array.isArray(parsedValue)) {
+          return JSON.stringify({
+            state: { likedOutfits: parsedValue },
+            version: 0,
+          });
+        }
+      } catch {
+        return null;
+      }
+
+      return storedValue;
+    },
+    setItem: (name, value) => window.localStorage.setItem(name, value),
+    removeItem: (name) => window.localStorage.removeItem(name),
+  };
+});
+
+export const useLikedOutfitsStore = create(
+  persist(
+    (set, get) => ({
+      likedOutfits: [],
+      toggleLikedOutfit: (outfit) => {
+        const { likedOutfits } = get();
+        const exists = likedOutfits.some(
+          (currentOutfit) => currentOutfit.id === outfit.id,
+        );
+        const nextOutfits = exists
+          ? likedOutfits.filter((currentOutfit) => currentOutfit.id !== outfit.id)
+          : [{ ...outfit, likedAt: Date.now() }, ...likedOutfits];
+
+        set({ likedOutfits: nextOutfits });
+      },
+    }),
+    {
+      name: STORAGE_KEY,
+      storage: legacyAwareStorage,
+      partialize: (state) => ({ likedOutfits: state.likedOutfits }),
+    },
+  ),
+);
 
 export function useLikedOutfits() {
-  const [likedOutfits, setLikedOutfits] = useState(readLikedOutfits);
-
-  useEffect(() => {
-    const syncLikedOutfits = () => {
-      setLikedOutfits(readLikedOutfits());
-    };
-
-    window.addEventListener(CHANGE_EVENT, syncLikedOutfits);
-    window.addEventListener('storage', syncLikedOutfits);
-
-    return () => {
-      window.removeEventListener(CHANGE_EVENT, syncLikedOutfits);
-      window.removeEventListener('storage', syncLikedOutfits);
-    };
-  }, []);
+  const likedOutfits = useLikedOutfitsStore((state) => state.likedOutfits);
+  const toggleLikedOutfit = useLikedOutfitsStore(
+    (state) => state.toggleLikedOutfit,
+  );
 
   const sortedLikedOutfits = useMemo(
     () =>
@@ -48,20 +80,6 @@ export function useLikedOutfits() {
     (id) => likedOutfits.some((outfit) => outfit.id === id),
     [likedOutfits],
   );
-
-  const toggleLikedOutfit = useCallback((outfit) => {
-    setLikedOutfits((currentOutfits) => {
-      const exists = currentOutfits.some(
-        (currentOutfit) => currentOutfit.id === outfit.id,
-      );
-      const nextOutfits = exists
-        ? currentOutfits.filter((currentOutfit) => currentOutfit.id !== outfit.id)
-        : [{ ...outfit, likedAt: Date.now() }, ...currentOutfits];
-
-      writeLikedOutfits(nextOutfits);
-      return nextOutfits;
-    });
-  }, []);
 
   return {
     likedOutfits: sortedLikedOutfits,
