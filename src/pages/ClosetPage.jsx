@@ -9,10 +9,6 @@ import {
   importClothes,
   updateClothesFavorite,
 } from '@/api/clothes';
-import {
-  WEATHER_COMPARISON_LOCATION,
-  readWeatherComparisonCache,
-} from '@/utils/weatherComparisonCache';
 
 const closetCategories = [
   {
@@ -236,7 +232,9 @@ const bagTypeOptions = [
   { value: 'OTHER', label: '기타' },
 ];
 
-const sleeveLengthValues = new Set(sleeveLengthOptions.map(({ value }) => value));
+const sleeveLengthValues = new Set(
+  sleeveLengthOptions.map(({ value }) => value),
+);
 const thicknessValues = new Set(thicknessOptions.map(({ value }) => value));
 const fitValues = new Set(fitOptions.map(({ value }) => value));
 const materialValues = new Set(materialOptions.map(({ value }) => value));
@@ -246,11 +244,11 @@ const typeValuesByCategory = {
   ACC: new Set(accTypeOptions.map(({ value }) => value)),
   BAG: new Set(bagTypeOptions.map(({ value }) => value)),
 };
-const typeValues = new Set([
-  ...shoeTypeOptions,
-  ...accTypeOptions,
-  ...bagTypeOptions,
-].map(({ value }) => value));
+const typeValues = new Set(
+  [...shoeTypeOptions, ...accTypeOptions, ...bagTypeOptions].map(
+    ({ value }) => value,
+  ),
+);
 
 const detailOptionAliases = {
   롱: 'LONG',
@@ -352,6 +350,10 @@ const importDetailDefaults = {
   waterproof: null,
   warmthBonus: null,
 };
+const defaultRecommendedTempRange = {
+  minTemp: 0,
+  maxTemp: 0,
+};
 
 const fallbackColor = '#D8DEE9';
 const defaultClothingImage = encodeURI(
@@ -363,6 +365,25 @@ const toFiniteNumber = (value, fallback = 0) => {
   const numberValue = Number(value);
 
   return Number.isFinite(numberValue) ? numberValue : fallback;
+};
+
+const toRecommendedTempNumber = (value) => {
+  if (String(value ?? '').trim() === '') return null;
+
+  return toFiniteNumber(value, null);
+};
+
+const getPreviewTempRange = (preview) => {
+  const minTemp = toRecommendedTempNumber(
+    preview?.minTemp ?? preview?.min_temp,
+  );
+  const maxTemp = toRecommendedTempNumber(
+    preview?.maxTemp ?? preview?.max_temp,
+  );
+
+  if (minTemp === null || maxTemp === null) return null;
+
+  return { minTemp, maxTemp };
 };
 
 const toNullableText = (value) => {
@@ -418,29 +439,24 @@ const createImportDetailsPayload = (details = {}, category) => ({
   warmthBonus: null,
 });
 
-const getWeatherTemperatureRange = (weather) => {
-  const minTemp = toFiniteNumber(weather?.temp_min ?? weather?.minTemp, null);
-  const maxTemp = toFiniteNumber(weather?.temp_max ?? weather?.maxTemp, null);
-
-  if (minTemp === null || maxTemp === null) return null;
-
-  return { minTemp, maxTemp };
-};
-
 const getItemColors = (item) => {
   const colors = Array.isArray(item?.colors) ? item.colors : [];
-  const nextColors = colors.length > 0 ? colors : [item?.color ?? fallbackColor];
+  const nextColors =
+    colors.length > 0 ? colors : [item?.color ?? fallbackColor];
 
   return nextColors.filter(Boolean);
 };
-
 
 function ClosetPage() {
   const navigate = useNavigate();
   const { category } = useParams();
   const { seasonTheme } = useSeasonTheme();
   const selectedCategory =
-    category === allCategory.key ? allCategory : category ? categoryByKey[category] : null;
+    category === allCategory.key
+      ? allCategory
+      : category
+        ? categoryByKey[category]
+        : null;
   const items = useClothesStore((state) => state.items);
   const clothesLoading = useClothesStore((state) => state.loading);
   const likedItemIds = useClothesStore((state) => state.likedItemIds);
@@ -485,8 +501,10 @@ function ClosetPage() {
   const [importError, setImportError] = useState('');
   const [importDetails, setImportDetails] = useState(importDetailDefaults);
   const [acceptCategoryMismatch, setAcceptCategoryMismatch] = useState(false);
-  const [todayWeatherRange, setTodayWeatherRange] = useState(null);
-  const [weatherError, setWeatherError] = useState('');
+  const [recommendedTempRange, setRecommendedTempRange] = useState(
+    defaultRecommendedTempRange,
+  );
+  const [isManualTempRange, setIsManualTempRange] = useState(false);
 
   const filteredItems = useMemo(() => {
     if (!selectedCategory) return [];
@@ -507,8 +525,8 @@ function ClosetPage() {
     setImportError('');
     setImportDetails(importDetailDefaults);
     setAcceptCategoryMismatch(false);
-    setTodayWeatherRange(null);
-    setWeatherError('');
+    setRecommendedTempRange(defaultRecommendedTempRange);
+    setIsManualTempRange(false);
   }, []);
 
   useEffect(() => {
@@ -539,21 +557,6 @@ function ClosetPage() {
     return <Navigate to="/closet" replace />;
   }
 
-  const loadTodayWeatherRangeFromCache = () => {
-    setWeatherError('');
-    setTodayWeatherRange(null);
-
-    const comparisonData = readWeatherComparisonCache(WEATHER_COMPARISON_LOCATION);
-    const nextWeatherRange = getWeatherTemperatureRange(comparisonData?.today);
-
-    if (!nextWeatherRange) {
-      setWeatherError('날씨 비교 페이지에서 날씨를 먼저 불러와 주세요.');
-      return;
-    }
-
-    setTodayWeatherRange(nextWeatherRange);
-  };
-
   const openModal = () => {
     const routeApiCategory =
       selectedCategory && selectedCategory.key !== allCategory.key
@@ -564,8 +567,9 @@ function ClosetPage() {
     setImportConfirmCategory(routeApiCategory);
     setAcceptCategoryMismatch(false);
     setImportError('');
+    setRecommendedTempRange(defaultRecommendedTempRange);
+    setIsManualTempRange(false);
     setIsModalOpen(true);
-    loadTodayWeatherRangeFromCache();
   };
 
   const toggleLikedItem = async (itemId) => {
@@ -582,7 +586,9 @@ function ClosetPage() {
     setLikedItemIds((currentLikedItemIds) =>
       nextFavorite
         ? [...currentLikedItemIds, itemId]
-        : currentLikedItemIds.filter((currentItemId) => currentItemId !== itemId),
+        : currentLikedItemIds.filter(
+            (currentItemId) => currentItemId !== itemId,
+          ),
     );
 
     try {
@@ -591,12 +597,16 @@ function ClosetPage() {
       setLikedItemIds((currentLikedItemIds) =>
         wasLiked
           ? [...new Set([...currentLikedItemIds, itemId])]
-          : currentLikedItemIds.filter((currentItemId) => currentItemId !== itemId),
+          : currentLikedItemIds.filter(
+              (currentItemId) => currentItemId !== itemId,
+            ),
       );
       setClosetError('좋아요 변경에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setFavoritePendingItemIds((currentPendingItemIds) =>
-        currentPendingItemIds.filter((currentItemId) => currentItemId !== itemId),
+        currentPendingItemIds.filter(
+          (currentItemId) => currentItemId !== itemId,
+        ),
       );
     }
   };
@@ -610,6 +620,8 @@ function ClosetPage() {
     setImportError('');
     setImportPreview(null);
     setAcceptCategoryMismatch(false);
+    setRecommendedTempRange(defaultRecommendedTempRange);
+    setIsManualTempRange(false);
     try {
       const previewCategory = importPreview
         ? importConfirmCategory
@@ -619,12 +631,15 @@ function ClosetPage() {
         originalUrl: importUrl.trim(),
       });
       const nextDetails = normalizeImportDetails(data.details);
+      const previewTempRange = getPreviewTempRange(data);
       setImportPreview(data);
       setImportConfirmName(data.common?.name ?? '');
       setImportConfirmCategory(
         data.detectedCategory || data.requestedCategory || previewCategory,
       );
       setImportDetails(nextDetails);
+      setRecommendedTempRange(previewTempRange ?? defaultRecommendedTempRange);
+      setIsManualTempRange(!previewTempRange);
       setAcceptCategoryMismatch(false);
     } catch {
       setImportError('미리보기를 불러오지 못했습니다. URL을 확인해 주세요.');
@@ -640,12 +655,21 @@ function ClosetPage() {
     setImportConfirmCategory(importCategory);
     setImportDetails(importDetailDefaults);
     setAcceptCategoryMismatch(false);
+    setRecommendedTempRange(defaultRecommendedTempRange);
+    setIsManualTempRange(false);
     setImportError('');
   };
 
   const handleImportDetailChange = (key, value) => {
     setImportDetails((currentDetails) => ({
       ...currentDetails,
+      [key]: value,
+    }));
+  };
+
+  const handleRecommendedTempRangeChange = (key, value) => {
+    setRecommendedTempRange((currentRange) => ({
+      ...currentRange,
       [key]: value,
     }));
   };
@@ -668,8 +692,11 @@ function ClosetPage() {
       return;
     }
 
-    if (!todayWeatherRange) {
-      setImportError('오늘 최저/최고 온도를 불러온 뒤 등록해 주세요.');
+    const minTemp = toRecommendedTempNumber(recommendedTempRange.minTemp);
+    const maxTemp = toRecommendedTempNumber(recommendedTempRange.maxTemp);
+
+    if (minTemp === null || maxTemp === null) {
+      setImportError('추천 온도 범위를 숫자로 입력해 주세요.');
       return;
     }
 
@@ -686,7 +713,6 @@ function ClosetPage() {
         normalizedDetails,
         importConfirmCategory,
       );
-      const { minTemp, maxTemp } = todayWeatherRange;
       const { data: importedClothes } = await importClothes({
         analysisToken: importPreview.analysisToken,
         name: trimmedName,
@@ -699,7 +725,8 @@ function ClosetPage() {
         ),
       });
 
-      const importedCategory = importedClothes?.category ?? importConfirmCategory;
+      const importedCategory =
+        importedClothes?.category ?? importConfirmCategory;
       const displayCategory =
         categoryApiToDisplay[importedCategory] ?? importedCategory;
       const colorName = detailsPayload.color || '기타';
@@ -769,13 +796,14 @@ function ClosetPage() {
       importError={importError}
       importDetails={importDetails}
       acceptCategoryMismatch={acceptCategoryMismatch}
-      todayWeatherRange={todayWeatherRange}
-      weatherError={weatherError}
+      recommendedTempRange={recommendedTempRange}
+      isManualTempRange={isManualTempRange}
       onImportUrlChange={handleImportUrlChange}
       onImportCategoryChange={setImportCategory}
       onImportConfirmNameChange={setImportConfirmName}
       onImportConfirmCategoryChange={handleImportConfirmCategoryChange}
       onImportDetailChange={handleImportDetailChange}
+      onRecommendedTempRangeChange={handleRecommendedTempRangeChange}
       onAcceptCategoryMismatchChange={setAcceptCategoryMismatch}
       onFetchPreview={handleFetchPreview}
       onImportSubmit={handleImportSubmit}
@@ -785,7 +813,10 @@ function ClosetPage() {
 
 function ClosetHomeView({ seasonTheme, onSelect }) {
   return (
-    <HomePage $background={seasonTheme.background} $primary={seasonTheme.primary}>
+    <HomePage
+      $background={seasonTheme.background}
+      $primary={seasonTheme.primary}
+    >
       <WardrobeCard>
         <WardrobeCanvas>
           <WardrobeImage src={closetArtwork} alt="" aria-hidden="true" />
@@ -890,13 +921,14 @@ function ClosetCategoryView({
   importError,
   importDetails,
   acceptCategoryMismatch,
-  todayWeatherRange,
-  weatherError,
+  recommendedTempRange,
+  isManualTempRange,
   onImportUrlChange,
   onImportCategoryChange,
   onImportConfirmNameChange,
   onImportConfirmCategoryChange,
   onImportDetailChange,
+  onRecommendedTempRangeChange,
   onAcceptCategoryMismatchChange,
   onFetchPreview,
   onImportSubmit,
@@ -943,7 +975,9 @@ function ClosetCategoryView({
             {items.filter(Boolean).map((item) => {
               const itemColors = getItemColors(item);
               const isLiked = likedItemIds.includes(item.id);
-              const isFavoritePending = favoritePendingItemIds.includes(item.id);
+              const isFavoritePending = favoritePendingItemIds.includes(
+                item.id,
+              );
 
               return (
                 <ClosetCard key={item.id}>
@@ -980,7 +1014,9 @@ function ClosetCategoryView({
           <EmptyTitle $textColor={seasonTheme.text}>
             아직 등록된 옷이 없어요.
           </EmptyTitle>
-          <EmptyText>오른쪽 아래 + 버튼으로 새 옷을 추가할 수 있어요.</EmptyText>
+          <EmptyText>
+            오른쪽 아래 + 버튼으로 새 옷을 추가할 수 있어요.
+          </EmptyText>
         </EmptyState>
       )}
 
@@ -1056,14 +1092,14 @@ function ClosetCategoryView({
                     <TextInput
                       id="import-confirm-name"
                       value={importConfirmName}
-                      onChange={(e) => onImportConfirmNameChange(e.target.value)}
+                      onChange={(e) =>
+                        onImportConfirmNameChange(e.target.value)
+                      }
                     />
                   </Field>
 
                   <Field>
-                    <Label as="span">
-                      등록 카테고리
-                    </Label>
+                    <Label as="span">등록 카테고리</Label>
                     <CustomSelect
                       ariaLabel="등록 카테고리"
                       value={importConfirmCategory}
@@ -1092,14 +1128,43 @@ function ClosetCategoryView({
                 </>
               )}
 
-              <PreviewInfoRow>
-                <span>오늘 온도 범위</span>
-                <span>
-                  {todayWeatherRange
-                    ? `${todayWeatherRange.minTemp}°C ~ ${todayWeatherRange.maxTemp}°C`
-                    : '정보 없음'}
-                </span>
-              </PreviewInfoRow>
+              {importPreview &&
+                (isManualTempRange ? (
+                  <TemperatureRangeFields>
+                <Field>
+                  <Label htmlFor="import-min-temp">추천 최저 온도</Label>
+                  <TextInput
+                    id="import-min-temp"
+                    type="number"
+                    step="0.1"
+                    value={recommendedTempRange.minTemp}
+                    onChange={(e) =>
+                      onRecommendedTempRangeChange('minTemp', e.target.value)
+                    }
+                  />
+                </Field>
+                <Field>
+                  <Label htmlFor="import-max-temp">추천 최고 온도</Label>
+                  <TextInput
+                    id="import-max-temp"
+                    type="number"
+                    step="0.1"
+                    value={recommendedTempRange.maxTemp}
+                    onChange={(e) =>
+                      onRecommendedTempRangeChange('maxTemp', e.target.value)
+                    }
+                  />
+                </Field>
+                  </TemperatureRangeFields>
+                ) : (
+                  <TemperatureRangePreview>
+                    <span>추천 온도 범위</span>
+                    <strong>
+                      {recommendedTempRange.minTemp}°C ~{' '}
+                      {recommendedTempRange.maxTemp}°C
+                    </strong>
+                  </TemperatureRangePreview>
+                ))}
 
               {importPreview && (
                 <ImportDetailFields>
@@ -1131,9 +1196,7 @@ function ClosetCategoryView({
                       ariaLabel="핏"
                       value={importDetails.fit}
                       options={fitOptions}
-                      onChange={(value) =>
-                        onImportDetailChange('fit', value)
-                      }
+                      onChange={(value) => onImportDetailChange('fit', value)}
                     />
                   </Field>
                   <Field>
@@ -1153,9 +1216,7 @@ function ClosetCategoryView({
                       ariaLabel="색상"
                       value={importDetails.color}
                       options={colorOptions}
-                      onChange={(value) =>
-                        onImportDetailChange('color', value)
-                      }
+                      onChange={(value) => onImportDetailChange('color', value)}
                     />
                   </Field>
                   {typeOptions.length > 0 && (
@@ -1188,8 +1249,10 @@ function ClosetCategoryView({
                 </ImportWarnings>
               )}
 
-              {(weatherError || importError) && (
-                <ErrorText role="alert">{weatherError || importError}</ErrorText>
+              {importError && (
+                <ErrorText role="alert">
+                  {importError}
+                </ErrorText>
               )}
 
               <ActionRow>
@@ -1201,7 +1264,6 @@ function ClosetCategoryView({
                   onClick={onImportSubmit}
                   disabled={
                     importSubmitting ||
-                    !todayWeatherRange ||
                     !importPreview ||
                     (importPreview.categoryMismatch && !acceptCategoryMismatch)
                   }
@@ -1264,7 +1326,8 @@ const WardrobeCanvas = styled.div`
   overflow: hidden;
   border-radius: 10px;
   background: transparent;
-  box-shadow: 2px 2px 10px color-mix(in srgb, var(--season-primary) 20%, transparent);
+  box-shadow: 2px 2px 10px
+    color-mix(in srgb, var(--season-primary) 20%, transparent);
 `;
 
 const WardrobeImage = styled.img`
@@ -1297,7 +1360,6 @@ const WardrobeHotspot = styled.button`
     outline: 3px solid var(--season-primary);
     outline-offset: 2px;
   }
-
 `;
 
 const Page = styled.section`
@@ -1321,7 +1383,7 @@ const CategoryHeader = styled.div`
 
 const CategoryTitle = styled.h2`
   margin: 0 0 4px 22px;
-  color: #43474F;
+  color: #43474f;
   font-family: 'KyoboHandwriting2025lyb', sans-serif;
   font-size: 18px;
   font-weight: 400;
@@ -1344,7 +1406,8 @@ const ClosetCard = styled.article`
   overflow: hidden;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--season-primary) 18%, transparent);
+  box-shadow: 0 8px 22px
+    color-mix(in srgb, var(--season-primary) 18%, transparent);
 `;
 
 const ItemImage = styled.img`
@@ -1428,7 +1491,8 @@ const FloatingAddButton = styled.button`
   position: fixed;
   right: 22px;
   bottom: calc(
-    ${({ theme }) => theme.heights.bottomNav} + env(safe-area-inset-bottom) + 10px
+    ${({ theme }) => theme.heights.bottomNav} + env(safe-area-inset-bottom) +
+      10px
   );
   width: 64px;
   height: 64px;
@@ -1437,7 +1501,8 @@ const FloatingAddButton = styled.button`
   z-index: 5;
   border-radius: 50%;
   background: var(--season-primary);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--season-primary) 32%, transparent);
+  box-shadow: 0 12px 24px
+    color-mix(in srgb, var(--season-primary) 32%, transparent);
 
   &::before,
   &::after {
@@ -1689,19 +1754,31 @@ const MismatchNotice = styled.p`
   font-weight: 700;
 `;
 
-const PreviewInfoRow = styled.div`
+const TemperatureRangeFields = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f9fafb;
+`;
+
+const TemperatureRangePreview = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 12px;
   border-radius: 8px;
   background: #f9fafb;
   color: #374151;
   font-size: 13px;
 
-  span:last-child {
-    font-weight: 700;
+  strong {
     color: var(--season-primary);
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
   }
 `;
 

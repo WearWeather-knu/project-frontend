@@ -6,22 +6,24 @@ const BASE_HEIGHT = 844;
 
 function MobileFrame({ children }) {
   const [scale, setScale] = useState(1);
+  const [frameHeight, setFrameHeight] = useState(BASE_HEIGHT);
 
   useEffect(() => {
-    const updateScale = () => {
-      const nextScale = Math.min(
-        window.innerWidth / BASE_WIDTH,
-        window.innerHeight / BASE_HEIGHT,
-        1,
-      );
+    const updateFrameSize = () => {
+      const nextScale = window.innerWidth / BASE_WIDTH;
+      const resolvedScale = Number.isFinite(nextScale) ? nextScale : 1;
+      const nextFrameHeight = window.innerHeight / resolvedScale;
 
-      setScale(Number.isFinite(nextScale) ? nextScale : 1);
+      setScale(resolvedScale);
+      setFrameHeight(
+        Number.isFinite(nextFrameHeight) ? nextFrameHeight : BASE_HEIGHT,
+      );
     };
 
-    updateScale();
-    window.addEventListener('resize', updateScale);
+    updateFrameSize();
+    window.addEventListener('resize', updateFrameSize);
 
-    return () => window.removeEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateFrameSize);
   }, []);
 
   return (
@@ -29,9 +31,9 @@ function MobileFrame({ children }) {
       <FrameShell
         $scale={scale}
         $width={BASE_WIDTH}
-        $height={BASE_HEIGHT}
+        $height={frameHeight}
       >
-        <Frame $scale={scale}>{children}</Frame>
+        <Frame $scale={scale} $height={frameHeight}>{children}</Frame>
       </FrameShell>
     </Viewport>
   );
@@ -59,7 +61,7 @@ const Frame = styled.div`
   top: 0;
   left: 0;
   width: 390px;
-  height: 844px;
+  height: ${({ $height }) => `${$height}px`};
   display: flex;
   flex-direction: column;
   background: #ffffff;

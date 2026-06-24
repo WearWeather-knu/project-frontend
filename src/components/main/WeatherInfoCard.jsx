@@ -56,7 +56,7 @@ const Location = styled.p`
   gap: 6px;
   color: ${({ theme }) => theme.colors.text};
   font-family: 'Duru Sans', sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 400;
 `;
 
@@ -103,8 +103,8 @@ const WeatherIcon = styled.span`
   color: ${({ $color }) => $color};
   background-color: currentColor;
   transform: translateY(-50%);
-  -webkit-mask-image: url("${({ $icon }) => $icon}");
-  mask-image: url("${({ $icon }) => $icon}");
+  -webkit-mask-image: url('${({ $icon }) => $icon}');
+  mask-image: url('${({ $icon }) => $icon}');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%;

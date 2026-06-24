@@ -307,9 +307,7 @@ function ComparisonPage() {
 
   return (
     <Page $background={seasonTheme.background} $primary={seasonTheme.primary}>
-      <TitleGroup>
-        <Title>W E A T H E R</Title>
-      </TitleGroup>
+      <Title>W E A T H E R</Title>
 
       {isLoading ? (
         <ComparisonSkeleton primary={seasonTheme.primary} />
@@ -452,6 +450,8 @@ function ComparisonSkeleton({ primary }) {
 const Page = styled.section`
   min-height: calc(100% + 44px);
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 20px;
   margin: -20px -20px -24px;
   padding: 28px 20px 32px;
@@ -459,17 +459,16 @@ const Page = styled.section`
   --season-primary: ${({ $primary }) => $primary};
 `;
 
-const TitleGroup = styled.div`
-  display: grid;
-  gap: 6px;
-`;
-
 const Title = styled.h2`
-  margin: 0 0 4px 22px;
+  align-self: start;
+  justify-self: start;
+  margin: 0;
+  margin-left: 22px;
   color: #43474f;
   font-family: 'KyoboHandwriting2025lyb', sans-serif;
   font-size: 18px;
   font-weight: 400;
+  line-height: 18px;
   letter-spacing: 0;
 `;
 
@@ -730,14 +729,17 @@ const Outfit = styled.p`
 
 const SummaryCard = styled.section`
   display: grid;
-  gap: 14px;
+  align-self: start;
+  gap: 8px;
+  height: fit-content;
 `;
 
 const SectionTitle = styled.h3`
-  margin: 4px 12px;
+  margin: 0 12px;
   color: #43474f;
   font-size: 14px;
   font-weight: 400;
+  line-height: 1.25;
 `;
 
 const MetricList = styled.div`
@@ -747,10 +749,10 @@ const MetricList = styled.div`
 
 const MetricItem = styled.article`
   display: grid;
-  align-content: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 2px;
-  min-height: 58px;
-  padding: 13px 18px 17px;
+  padding: 10px 18px 12px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.4);
   box-shadow: 0 6px 18px
@@ -758,13 +760,12 @@ const MetricItem = styled.article`
 `;
 
 const MetricHead = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  display: contents;
 `;
 
 const MetricLabel = styled.span`
+  grid-column: 1;
+  grid-row: 1;
   color: #4b5563;
   font-family: inherit;
   font-size: 11px;
@@ -772,7 +773,11 @@ const MetricLabel = styled.span`
 `;
 
 const MetricValue = styled.strong`
-  transform: translateY(10px);
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
   color: ${({ $primary }) => $primary};
   font-family: 'Pretendard', sans-serif;
   font-size: 18px;
@@ -781,6 +786,8 @@ const MetricValue = styled.strong`
 `;
 
 const MetricSummary = styled.p`
+  grid-column: 1;
+  grid-row: 2;
   margin: 0;
   color: ${({ theme }) => theme.colors.text};
   font-size: 14px;
