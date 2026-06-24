@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
 import closetArtwork from '@/assets/CLOSET.png';
 import { previewClothesImport, importClothes } from '@/api/clothes';
+import { getWeatherComparison } from '@/api/weather';
 
 const closetCategories = [
   {
@@ -54,7 +55,6 @@ const closetCategories = [
   },
 ];
 
-const categoryLabels = closetCategories.map((category) => category.label);
 const spacedCategoryLabels = {
   아우터: '아 우 터',
   상의: '상 의',
@@ -69,32 +69,6 @@ const categoryByKey = Object.fromEntries(
   closetCategories.map((category) => [category.key, category]),
 );
 const allCategory = { key: 'all', label: '전체' };
-const categoryKeyByLabel = Object.fromEntries(
-  closetCategories.map((category) => [category.label, category.key]),
-);
-const seasonOptions = ['봄', '여름', '가을', '겨울', '사계절'];
-const lengthOptions = ['롱', '숏', '크롭'];
-const materialOptions = ['면', '청', '니트', '폴리', '가죽', '기타'];
-const colorOptions = [
-  '화이트',
-  '블랙',
-  '그레이',
-  '브라운',
-  '블루',
-  '핑크',
-  '그린',
-  '레드',
-  '베이지',
-  '옐로우',
-  '네이비',
-  '퍼플',
-  '스카이블루',
-  '오렌지',
-  '민트',
-  '카키',
-  '버건디',
-  '기타',
-];
 
 const colorMap = {
   화이트: '#F8FAFC',
@@ -156,22 +130,63 @@ const importDetailLabels = {
   warmthBonus: '보온 지수',
 };
 
+const importDetailDefaults = {
+  sleeveLength: '',
+  thickness: '',
+  fit: '',
+  material: '',
+  color: '',
+  length: '',
+  type: '',
+  windproof: false,
+  waterproof: false,
+  warmthBonus: 0,
+};
+
 const fallbackColor = '#D8DEE9';
 const defaultClothingImage = encodeURI(
   '/ChatGPT Image 2026년 6월 23일 오후 03_34_52.png',
 );
 const lightColorValues = new Set(['#ffffff', '#fff', '#f8fafc', '#f4f5f7']);
 const isLightColor = (color) => lightColorValues.has(color.toLowerCase());
+const WEATHER_LOCATION_NAME = '대구광역시, 북구';
 
-const initialForm = {
-  name: '',
-  category: '상의',
-  seasons: [],
-  colorNames: ['화이트'],
-  customColorName: '',
-  imageUrl: '',
-  length: '롱',
-  material: '면',
+const toFiniteNumber = (value, fallback = 0) => {
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+};
+
+const normalizeImportDetails = (details = {}) => ({
+  sleeveLength: details.sleeveLength ?? importDetailDefaults.sleeveLength,
+  thickness: details.thickness ?? importDetailDefaults.thickness,
+  fit: details.fit ?? importDetailDefaults.fit,
+  material: details.material ?? importDetailDefaults.material,
+  color: details.color ?? importDetailDefaults.color,
+  length: details.length ?? importDetailDefaults.length,
+  type: details.type ?? importDetailDefaults.type,
+  windproof: Boolean(details.windproof),
+  waterproof: Boolean(details.waterproof),
+  warmthBonus: toFiniteNumber(
+    details.warmthBonus,
+    importDetailDefaults.warmthBonus,
+  ),
+});
+
+const getWeatherTemperatureRange = (weather) => {
+  const minTemp = toFiniteNumber(weather?.temp_min ?? weather?.minTemp, null);
+  const maxTemp = toFiniteNumber(weather?.temp_max ?? weather?.maxTemp, null);
+
+  if (minTemp === null || maxTemp === null) return null;
+
+  return { minTemp, maxTemp };
+};
+
+const getItemColors = (item) => {
+  const colors = Array.isArray(item?.colors) ? item.colors : [];
+  const nextColors = colors.length > 0 ? colors : [item?.color ?? fallbackColor];
+
+  return nextColors.filter(Boolean);
 };
 
 const closetItems = [
@@ -234,10 +249,6 @@ function ClosetPage() {
   const [items, setItems] = useState(closetItems);
   const [likedItemIds, setLikedItemIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState(initialForm);
-  const [error, setError] = useState('');
-  const [modalTab, setModalTab] = useState('import');
-  const [importStep, setImportStep] = useState('input');
   const [importUrl, setImportUrl] = useState('');
   const [importCategory, setImportCategory] = useState('OUTER');
   const [importPreview, setImportPreview] = useState(null);
@@ -246,6 +257,9 @@ function ClosetPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importError, setImportError] = useState('');
+  const [todayWeatherRange, setTodayWeatherRange] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState('');
 
   const filteredItems = useMemo(() => {
     if (!selectedCategory) return [];
@@ -255,11 +269,7 @@ function ClosetPage() {
   }, [items, selectedCategory]);
 
   const closeModal = useCallback(() => {
-    setForm(initialForm);
-    setError('');
     setIsModalOpen(false);
-    setModalTab('import');
-    setImportStep('input');
     setImportUrl('');
     setImportCategory('OUTER');
     setImportPreview(null);
@@ -268,6 +278,9 @@ function ClosetPage() {
     setImportLoading(false);
     setImportSubmitting(false);
     setImportError('');
+    setTodayWeatherRange(null);
+    setWeatherLoading(false);
+    setWeatherError('');
   }, []);
 
   useEffect(() => {
@@ -288,57 +301,39 @@ function ClosetPage() {
     return <Navigate to="/closet" replace />;
   }
 
+  const loadTodayWeatherRange = async () => {
+    setWeatherLoading(true);
+    setWeatherError('');
+    setTodayWeatherRange(null);
+
+    try {
+      const { data } = await getWeatherComparison(WEATHER_LOCATION_NAME);
+      const comparisonData = data?.data ?? data;
+      const nextWeatherRange = getWeatherTemperatureRange(comparisonData?.today);
+
+      if (!nextWeatherRange) {
+        throw new Error('Invalid weather range');
+      }
+
+      setTodayWeatherRange(nextWeatherRange);
+    } catch {
+      setWeatherError('오늘 최저/최고 온도를 불러오지 못했습니다.');
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
   const openModal = () => {
     const routeApiCategory =
       selectedCategory && selectedCategory.key !== allCategory.key
         ? (categoryToApiEnum[selectedCategory.key] ?? 'OUTER')
         : 'OUTER';
 
-    setForm({
-      ...initialForm,
-      category:
-        selectedCategory && selectedCategory.key !== allCategory.key
-          ? selectedCategory.label
-          : initialForm.category,
-    });
     setImportCategory(routeApiCategory);
-    setError('');
+    setImportConfirmCategory(routeApiCategory);
+    setImportError('');
     setIsModalOpen(true);
-  };
-
-  const updateForm = (field, value) => {
-    setForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }));
-  };
-
-  const toggleSeason = (season) => {
-    setForm((currentForm) => {
-      const isSelected = currentForm.seasons.includes(season);
-
-      return {
-        ...currentForm,
-        seasons: isSelected
-          ? currentForm.seasons.filter((currentSeason) => currentSeason !== season)
-          : [...currentForm.seasons, season],
-      };
-    });
-  };
-
-  const toggleColor = (colorName) => {
-    setForm((currentForm) => {
-      const isSelected = currentForm.colorNames.includes(colorName);
-
-      return {
-        ...currentForm,
-        colorNames: isSelected
-          ? currentForm.colorNames.filter(
-              (currentColorName) => currentColorName !== colorName,
-            )
-          : [...currentForm.colorNames, colorName],
-      };
-    });
+    loadTodayWeatherRange();
   };
 
   const toggleLikedItem = (itemId) => {
@@ -356,17 +351,20 @@ function ClosetPage() {
     }
     setImportLoading(true);
     setImportError('');
+    setImportPreview(null);
     try {
+      const previewCategory = importPreview
+        ? importConfirmCategory
+        : importCategory;
       const { data } = await previewClothesImport({
-        category: importCategory,
+        category: previewCategory,
         originalUrl: importUrl.trim(),
       });
       setImportPreview(data);
       setImportConfirmName(data.common?.name ?? '');
       setImportConfirmCategory(
-        data.detectedCategory || data.requestedCategory || importCategory,
+        data.detectedCategory || data.requestedCategory || previewCategory,
       );
-      setImportStep('preview');
     } catch {
       setImportError('미리보기를 불러오지 못했습니다. URL을 확인해 주세요.');
     } finally {
@@ -374,46 +372,71 @@ function ClosetPage() {
     }
   };
 
-  const handleImportBack = () => {
-    setImportStep('input');
+  const handleImportUrlChange = (nextImportUrl) => {
+    setImportUrl(nextImportUrl);
     setImportPreview(null);
+    setImportConfirmName('');
+    setImportConfirmCategory(importCategory);
     setImportError('');
   };
 
   const handleImportSubmit = async () => {
     if (!importPreview) return;
+
+    const trimmedName = importConfirmName.trim();
+
+    if (!trimmedName) {
+      setImportError('옷 이름을 입력해 주세요.');
+      return;
+    }
+
+    if (!todayWeatherRange) {
+      setImportError('오늘 최저/최고 온도를 불러온 뒤 등록해 주세요.');
+      return;
+    }
+
     setImportSubmitting(true);
     setImportError('');
     try {
-      await importClothes({
+      const normalizedDetails = normalizeImportDetails(importPreview.details);
+      const { minTemp, maxTemp } = todayWeatherRange;
+      const { data: importedClothes } = await importClothes({
         analysisToken: importPreview.analysisToken,
+        name: trimmedName,
         category: importConfirmCategory,
-        name: importConfirmName,
+        minTemp,
+        maxTemp,
+        details: normalizedDetails,
+        acceptCategoryMismatch: Boolean(importPreview.categoryMismatch),
       });
 
+      const importedCategory = importedClothes?.category ?? importConfirmCategory;
       const displayCategory =
-        categoryApiToDisplay[importConfirmCategory] ?? importConfirmCategory;
+        categoryApiToDisplay[importedCategory] ?? importedCategory;
+      const colorName = normalizedDetails.color || '기타';
+      const color = colorMap[colorName] ?? fallbackColor;
       const newItem = {
-        id: Date.now(),
-        name: importConfirmName || importPreview.common?.name || '(이름 없음)',
+        id: importedClothes?.clothesId ?? Date.now(),
+        name: trimmedName,
         category: displayCategory,
         seasons: ['사계절'],
-        colors: [fallbackColor],
-        color: fallbackColor,
-        colorNames: ['기타'],
-        colorName: '기타',
-        imageUrl: importPreview.common?.imagePreviewUrl ?? '',
-        length: '',
-        material: importPreview.details?.material ?? '',
-        weather: importPreview.common
-          ? `${importPreview.common.minTemp}°~${importPreview.common.maxTemp}°`
-          : '',
+        colors: [color],
+        color,
+        colorNames: [colorName],
+        colorName,
+        imageUrl:
+          importedClothes?.imageUrl ??
+          importPreview.common?.imagePreviewUrl ??
+          '',
+        length: normalizedDetails.length,
+        material: normalizedDetails.material,
+        weather: `${minTemp}°~${maxTemp}°`,
       };
       setItems((prev) => [newItem, ...prev]);
       closeModal();
 
       const nextKey = Object.keys(categoryToApiEnum).find(
-        (k) => categoryToApiEnum[k] === importConfirmCategory,
+        (k) => categoryToApiEnum[k] === importedCategory,
       );
       if (nextKey && category !== allCategory.key && nextKey !== category) {
         navigate(`/closet/${nextKey}`);
@@ -421,52 +444,6 @@ function ClosetPage() {
     } catch {
       setImportError('등록에 실패했습니다. 다시 시도해 주세요.');
       setImportSubmitting(false);
-    }
-  };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-
-    if (!form.name.trim() || !form.category) {
-      setError('옷 이름과 종류를 입력해 주세요.');
-      return;
-    }
-
-    const seasons = form.seasons.length > 0 ? form.seasons : ['사계절'];
-    const selectedColorNames =
-      form.colorNames.length > 0 ? form.colorNames : ['화이트'];
-    const colorNames = selectedColorNames.map((selectedColorName) =>
-      selectedColorName === '기타'
-        ? form.customColorName.trim() || '기타'
-        : selectedColorName,
-    );
-    const colors = selectedColorNames.map(
-      (selectedColorName) => colorMap[selectedColorName] ?? fallbackColor,
-    );
-
-    const newItem = {
-      id: Date.now(),
-      name: form.name.trim(),
-      category: form.category,
-      seasons,
-      colors,
-      color: colors[0] ?? fallbackColor,
-      colorNames,
-      colorName: colorNames[0] ?? '화이트',
-      imageUrl: form.imageUrl.trim(),
-      length: form.length,
-      material: form.material,
-      weather: `${form.length} · ${form.material}`,
-    };
-
-    setItems((currentItems) => [newItem, ...currentItems]);
-    setForm(initialForm);
-    setError('');
-    setIsModalOpen(false);
-
-    const nextCategoryKey = categoryKeyByLabel[form.category];
-    if (category !== allCategory.key && nextCategoryKey && nextCategoryKey !== category) {
-      navigate(`/closet/${nextCategoryKey}`);
     }
   };
 
@@ -485,19 +462,11 @@ function ClosetPage() {
       seasonTheme={seasonTheme}
       items={filteredItems}
       likedItemIds={likedItemIds}
-      form={form}
-      error={error}
       isModalOpen={isModalOpen}
       onChangeCategory={(categoryKey) => navigate(`/closet/${categoryKey}`)}
       onOpenModal={openModal}
       onCloseModal={closeModal}
-      onUpdateForm={updateForm}
-      onToggleSeason={toggleSeason}
-      onToggleColor={toggleColor}
       onToggleLikedItem={toggleLikedItem}
-      onSubmit={handleSubmit}
-      modalTab={modalTab}
-      importStep={importStep}
       importUrl={importUrl}
       importCategory={importCategory}
       importPreview={importPreview}
@@ -506,13 +475,14 @@ function ClosetPage() {
       importLoading={importLoading}
       importSubmitting={importSubmitting}
       importError={importError}
-      onTabChange={setModalTab}
-      onImportUrlChange={setImportUrl}
+      todayWeatherRange={todayWeatherRange}
+      weatherLoading={weatherLoading}
+      weatherError={weatherError}
+      onImportUrlChange={handleImportUrlChange}
       onImportCategoryChange={setImportCategory}
       onImportConfirmNameChange={setImportConfirmName}
       onImportConfirmCategoryChange={setImportConfirmCategory}
       onFetchPreview={handleFetchPreview}
-      onImportBack={handleImportBack}
       onImportSubmit={handleImportSubmit}
     />
   );
@@ -604,19 +574,11 @@ function ClosetCategoryView({
   seasonTheme,
   items,
   likedItemIds,
-  form,
-  error,
   isModalOpen,
   onChangeCategory,
   onOpenModal,
   onCloseModal,
-  onUpdateForm,
-  onToggleSeason,
-  onToggleColor,
   onToggleLikedItem,
-  onSubmit,
-  modalTab,
-  importStep,
   importUrl,
   importCategory,
   importPreview,
@@ -625,32 +587,22 @@ function ClosetCategoryView({
   importLoading,
   importSubmitting,
   importError,
-  onTabChange,
+  todayWeatherRange,
+  weatherLoading,
+  weatherError,
   onImportUrlChange,
   onImportCategoryChange,
   onImportConfirmNameChange,
   onImportConfirmCategoryChange,
   onFetchPreview,
-  onImportBack,
   onImportSubmit,
 }) {
-  const [isColorSelectOpen, setIsColorSelectOpen] = useState(false);
-  const selectedColorText =
-    form.colorNames.length > 0 ? form.colorNames.join(', ') : '색상 선택';
-
   const handleOpenModal = () => {
-    setIsColorSelectOpen(false);
     onOpenModal();
   };
 
   const handleCloseModal = () => {
-    setIsColorSelectOpen(false);
     onCloseModal();
-  };
-
-  const handleSubmit = (event) => {
-    setIsColorSelectOpen(false);
-    onSubmit(event);
   };
 
   return (
@@ -674,8 +626,8 @@ function ClosetCategoryView({
 
       {items.length > 0 ? (
         <ClosetGrid>
-          {items.map((item) => {
-            const itemColors = item.colors ?? [item.color ?? fallbackColor];
+          {items.filter(Boolean).map((item) => {
+            const itemColors = getItemColors(item);
             const isLiked = likedItemIds.includes(item.id);
 
             return (
@@ -740,66 +692,48 @@ function ClosetCategoryView({
               </CloseButton>
             </ModalHeader>
 
-            <ModalTabBar>
-              <ModalTabButton
+            <ModalScrollContent>
+              <Field>
+                <Label as="span">카테고리</Label>
+                <CustomSelect
+                  ariaLabel="가져올 옷 종류"
+                  value={importPreview ? importConfirmCategory : importCategory}
+                  options={importCategoryOptions}
+                  onChange={
+                    importPreview
+                      ? onImportConfirmCategoryChange
+                      : onImportCategoryChange
+                  }
+                />
+              </Field>
+
+              <Field>
+                <Label htmlFor="import-url">상품 URL</Label>
+                <TextInput
+                  id="import-url"
+                  value={importUrl}
+                  onChange={(e) => onImportUrlChange(e.target.value)}
+                  placeholder="https://..."
+                />
+              </Field>
+
+              <SaveButton
                 type="button"
-                $active={modalTab === 'import'}
-                onClick={() => onTabChange('import')}
+                onClick={onFetchPreview}
+                disabled={importLoading || !importUrl.trim()}
               >
-                URL 가져오기
-              </ModalTabButton>
-              <ModalTabButton
-                type="button"
-                $active={modalTab === 'manual'}
-                onClick={() => onTabChange('manual')}
-              >
-                직접 입력
-              </ModalTabButton>
-            </ModalTabBar>
+                {importLoading ? '불러오는 중...' : '미리보기 불러오기'}
+              </SaveButton>
 
-            {modalTab === 'import' ? (
-              importStep === 'input' ? (
-                <ModalScrollContent>
-                  <Field>
-                    <Label as="span">카테고리</Label>
-                    <CustomSelect
-                      ariaLabel="가져올 옷 종류"
-                      value={importCategory}
-                      options={importCategoryOptions}
-                      onChange={onImportCategoryChange}
-                    />
-                  </Field>
-                  <Field>
-                    <Label htmlFor="import-url">상품 URL</Label>
-                    <TextInput
-                      id="import-url"
-                      value={importUrl}
-                      onChange={(e) => onImportUrlChange(e.target.value)}
-                      placeholder="https://..."
-                    />
-                  </Field>
-                  {importError && <ErrorText role="alert">{importError}</ErrorText>}
-                  <SaveButton
-                    type="button"
-                    onClick={onFetchPreview}
-                    disabled={importLoading}
-                  >
-                    {importLoading ? '불러오는 중...' : '미리보기 불러오기'}
-                  </SaveButton>
-                </ModalScrollContent>
-              ) : (
-                <ModalScrollContent>
-                  <BackLink type="button" onClick={onImportBack}>
-                    ← 다시 입력
-                  </BackLink>
+              {importPreview?.common?.imagePreviewUrl && (
+                <ImportPreviewImage
+                  src={importPreview.common.imagePreviewUrl}
+                  alt="상품 미리보기"
+                />
+              )}
 
-                  {importPreview?.common?.imagePreviewUrl && (
-                    <ImportPreviewImage
-                      src={importPreview.common.imagePreviewUrl}
-                      alt="상품 미리보기"
-                    />
-                  )}
-
+              {importPreview && (
+                <>
                   <Field>
                     <Label htmlFor="import-confirm-name">이름</Label>
                     <TextInput
@@ -811,234 +745,93 @@ function ClosetCategoryView({
 
                   <Field>
                     <Label as="span">
-                      카테고리
-                      {importPreview?.categoryMismatch && (
-                        <CategoryMismatchTag>감지 카테고리 불일치</CategoryMismatchTag>
+                      등록 카테고리
+                      {importPreview.categoryMismatch && (
+                        <CategoryMismatchTag>
+                          감지 카테고리 불일치
+                        </CategoryMismatchTag>
                       )}
                     </Label>
                     <CustomSelect
-                      ariaLabel="카테고리"
+                      ariaLabel="등록 카테고리"
                       value={importConfirmCategory}
                       options={importCategoryOptions}
                       onChange={onImportConfirmCategoryChange}
                     />
                   </Field>
+                </>
+              )}
 
-                  {importPreview?.common && (
-                    <PreviewInfoRow>
-                      <span>온도 범위</span>
-                      <span>
-                        {importPreview.common.minTemp}°C ~{' '}
-                        {importPreview.common.maxTemp}°C
-                      </span>
-                    </PreviewInfoRow>
-                  )}
+              <PreviewInfoRow>
+                <span>오늘 온도 범위</span>
+                <span>
+                  {weatherLoading
+                    ? '불러오는 중...'
+                    : todayWeatherRange
+                      ? `${todayWeatherRange.minTemp}°C ~ ${todayWeatherRange.maxTemp}°C`
+                      : '정보 없음'}
+                </span>
+              </PreviewInfoRow>
 
-                  {importPreview?.details && (
-                    <ImportDetailList>
-                      {Object.entries(importPreview.details)
-                        .filter(
-                          ([, v]) => v !== null && v !== '' && v !== false && v !== 0,
-                        )
-                        .map(([key, value]) => (
-                          <ImportDetailRow key={key}>
-                            <ImportDetailKey>
-                              {importDetailLabels[key] ?? key}
-                            </ImportDetailKey>
-                            <ImportDetailValue>
-                              {typeof value === 'boolean'
-                                ? value
-                                  ? '있음'
-                                  : '없음'
-                                : String(value)}
-                            </ImportDetailValue>
-                          </ImportDetailRow>
-                        ))}
-                    </ImportDetailList>
-                  )}
-
-                  {importPreview?.existingProduct && (
-                    <ExistingProductNotice>
-                      이미 등록된 상품입니다.
-                    </ExistingProductNotice>
-                  )}
-
-                  {importPreview?.warnings?.length > 0 && (
-                    <ImportWarnings>
-                      {importPreview.warnings.map((w, i) => (
-                        <ImportWarningItem key={i}>{w}</ImportWarningItem>
-                      ))}
-                    </ImportWarnings>
-                  )}
-
-                  {importError && <ErrorText role="alert">{importError}</ErrorText>}
-
-                  <ActionRow>
-                    <CancelButton type="button" onClick={handleCloseModal}>
-                      취소
-                    </CancelButton>
-                    <SaveButton
-                      type="button"
-                      onClick={onImportSubmit}
-                      disabled={importSubmitting}
-                    >
-                      {importSubmitting ? '등록 중...' : '등록하기'}
-                    </SaveButton>
-                  </ActionRow>
-                </ModalScrollContent>
-              )
-            ) : (
-              <Form onSubmit={handleSubmit}>
-                <Field>
-                  <Label htmlFor="item-name">옷 이름</Label>
-                  <TextInput
-                    id="item-name"
-                    value={form.name}
-                    onChange={(event) => onUpdateForm('name', event.target.value)}
-                    placeholder="예: 아이보리 반팔 셔츠"
-                  />
-                </Field>
-
-                <Field>
-                  <Label as="span">옷 종류</Label>
-                  <CustomSelect
-                    ariaLabel="옷 종류"
-                    value={form.category}
-                    options={categoryLabels.map((categoryLabel) => ({
-                      value: categoryLabel,
-                      label: categoryLabel,
-                    }))}
-                    onChange={(nextCategory) => onUpdateForm('category', nextCategory)}
-                  />
-                </Field>
-
-                <Field>
-                  <Label htmlFor="item-image-url">이미지 URL</Label>
-                  <TextInput
-                    id="item-image-url"
-                    value={form.imageUrl}
-                    onChange={(event) => onUpdateForm('imageUrl', event.target.value)}
-                    placeholder="https://..."
-                  />
-                </Field>
-
-                <Field>
-                  <Label as="span">시즌</Label>
-                  <OptionGrid>
-                    {seasonOptions.map((season) => (
-                      <OptionButton
-                        key={season}
-                        type="button"
-                        $active={form.seasons.includes(season)}
-                        onClick={() => onToggleSeason(season)}
-                      >
-                        {season}
-                      </OptionButton>
+              {importPreview?.details && (
+                <ImportDetailList>
+                  {Object.entries(importPreview.details)
+                    .filter(
+                      ([, v]) => v !== null && v !== '' && v !== false && v !== 0,
+                    )
+                    .map(([key, value]) => (
+                      <ImportDetailRow key={key}>
+                        <ImportDetailKey>
+                          {importDetailLabels[key] ?? key}
+                        </ImportDetailKey>
+                        <ImportDetailValue>
+                          {typeof value === 'boolean'
+                            ? value
+                              ? '있음'
+                              : '없음'
+                            : String(value)}
+                        </ImportDetailValue>
+                      </ImportDetailRow>
                     ))}
-                  </OptionGrid>
-                </Field>
+                </ImportDetailList>
+              )}
 
-                <Field>
-                  <Label as="span">색상</Label>
-                  <ColorSelectBox>
-                    <ColorSelectButton
-                      type="button"
-                      aria-expanded={isColorSelectOpen}
-                      onClick={() =>
-                        setIsColorSelectOpen((currentValue) => !currentValue)
-                      }
-                    >
-                      <ColorSelectText>{selectedColorText}</ColorSelectText>
-                      <ColorSelectChevron
-                        aria-hidden="true"
-                        $open={isColorSelectOpen}
-                      />
-                    </ColorSelectButton>
-                    {isColorSelectOpen && (
-                      <ColorOptionList>
-                        {colorOptions.map((colorOption) => (
-                          <ColorOptionItem
-                            key={colorOption}
-                            type="button"
-                            $active={form.colorNames.includes(colorOption)}
-                            onClick={() => onToggleColor(colorOption)}
-                          >
-                            <ColorCheck aria-hidden="true">
-                              {form.colorNames.includes(colorOption) ? '✓' : ''}
-                            </ColorCheck>
-                            {colorOption}
-                          </ColorOptionItem>
-                        ))}
-                      </ColorOptionList>
-                    )}
-                  </ColorSelectBox>
-                  {form.colorNames.length > 0 && (
-                    <SelectedColorRow aria-label="선택한 색상">
-                      {form.colorNames.map((colorName) => (
-                        <SelectedColorTag key={colorName}>
-                          #{colorName}
-                        </SelectedColorTag>
-                      ))}
-                    </SelectedColorRow>
-                  )}
-                </Field>
+              {importPreview?.existingProduct && (
+                <ExistingProductNotice>
+                  이미 등록된 상품입니다.
+                </ExistingProductNotice>
+              )}
 
-                {form.colorNames.includes('기타') && (
-                  <Field>
-                    <Label htmlFor="item-custom-color">색상 직접 입력</Label>
-                    <TextInput
-                      id="item-custom-color"
-                      value={form.customColorName}
-                      onChange={(event) =>
-                        onUpdateForm('customColorName', event.target.value)
-                      }
-                      placeholder="예: 라벤더"
-                    />
-                  </Field>
-                )}
+              {importPreview?.warnings?.length > 0 && (
+                <ImportWarnings>
+                  {importPreview.warnings.map((w, i) => (
+                    <ImportWarningItem key={i}>{w}</ImportWarningItem>
+                  ))}
+                </ImportWarnings>
+              )}
 
-                <TwoColumn>
-                  <Field>
-                    <Label as="span">기장</Label>
-                    <CustomSelect
-                      ariaLabel="기장"
-                      value={form.length}
-                      placement="up"
-                      options={lengthOptions.map((length) => ({
-                        value: length,
-                        label: length,
-                      }))}
-                      onChange={(nextLength) => onUpdateForm('length', nextLength)}
-                    />
-                  </Field>
+              {(weatherError || importError) && (
+                <ErrorText role="alert">{weatherError || importError}</ErrorText>
+              )}
 
-                  <Field>
-                    <Label as="span">소재</Label>
-                    <CustomSelect
-                      ariaLabel="소재"
-                      value={form.material}
-                      placement="up"
-                      options={materialOptions.map((material) => ({
-                        value: material,
-                        label: material,
-                      }))}
-                      onChange={(nextMaterial) =>
-                        onUpdateForm('material', nextMaterial)
-                      }
-                    />
-                  </Field>
-                </TwoColumn>
-
-                {error && <ErrorText role="alert">{error}</ErrorText>}
-
-                <ActionRow>
-                  <CancelButton type="button" onClick={handleCloseModal}>
-                    취소
-                  </CancelButton>
-                  <SaveButton type="submit">저장</SaveButton>
-                </ActionRow>
-              </Form>
-            )}
+              <ActionRow>
+                <CancelButton type="button" onClick={handleCloseModal}>
+                  취소
+                </CancelButton>
+                <SaveButton
+                  type="button"
+                  onClick={onImportSubmit}
+                  disabled={
+                    importSubmitting ||
+                    weatherLoading ||
+                    !todayWeatherRange ||
+                    !importPreview
+                  }
+                >
+                  {importSubmitting ? '등록 중...' : '등록하기'}
+                </SaveButton>
+              </ActionRow>
+            </ModalScrollContent>
           </ModalPanel>
         </ModalOverlay>
       )}
@@ -1241,7 +1034,7 @@ const EmptyText = styled.p`
 
 const FloatingAddButton = styled.button`
   position: fixed;
-  right: max(22px, calc((100vw - 390px) / 2 + 22px));
+  right: 22px;
   bottom: calc(
     ${({ theme }) => theme.heights.bottomNav} + env(safe-area-inset-bottom) + 10px
   );
@@ -1283,7 +1076,7 @@ const ModalPanel = styled.section`
   width: min(350px, 100%);
   max-height: min(760px, calc(100dvh - 40px));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   border-radius: 8px;
   background: #ffffff;
   overflow: hidden;
@@ -1317,14 +1110,6 @@ const CloseButton = styled.button`
   line-height: 1;
 `;
 
-const Form = styled.form`
-  min-height: 0;
-  display: grid;
-  gap: 14px;
-  padding: 16px 18px 18px;
-  overflow-y: auto;
-`;
-
 const Field = styled.div`
   display: grid;
   gap: 7px;
@@ -1345,25 +1130,6 @@ const TextInput = styled.input`
   background: #ffffff;
   color: #111827;
   font-size: 14px;
-`;
-
-const OptionGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-`;
-
-const OptionButton = styled.button`
-  min-width: 0;
-  height: 36px;
-  border: 1px solid
-    ${({ $active, theme }) =>
-      $active ? 'var(--season-primary)' : theme.colors.border};
-  border-radius: 8px;
-  background: ${({ $active }) => ($active ? 'var(--season-primary)' : '#ffffff')};
-  color: ${({ $active }) => ($active ? '#ffffff' : '#4b5563')};
-  font-size: 13px;
-  font-weight: 700;
 `;
 
 const ColorSelectBox = styled.div`
@@ -1444,20 +1210,6 @@ const ColorOptionItem = styled.button`
   text-align: left;
 `;
 
-const ColorCheck = styled.span`
-  width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 4px;
-  background: #ffffff;
-  color: var(--season-primary);
-  font-size: 12px;
-  font-weight: 800;
-`;
-
 const CustomSelectBox = styled(ColorSelectBox)`
   width: ${({ $width }) => $width};
 `;
@@ -1476,27 +1228,6 @@ const CustomOptionList = styled(ColorOptionList)`
 const CustomOptionItem = styled(ColorOptionItem)`
   justify-content: flex-start;
   padding: 0 12px;
-`;
-
-const SelectedColorRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-`;
-
-const SelectedColorTag = styled.span`
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #f2f4f7;
-  color: var(--season-primary);
-  font-size: 11px;
-  font-weight: 700;
-`;
-
-const TwoColumn = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
 `;
 
 const ErrorText = styled.p`
@@ -1530,41 +1261,12 @@ const SaveButton = styled.button`
   font-weight: 700;
 `;
 
-const ModalTabBar = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-`;
-
-const ModalTabButton = styled.button`
-  height: 42px;
-  background: ${({ $active }) => ($active ? '#ffffff' : '#f9fafb')};
-  color: ${({ $active }) => ($active ? 'var(--season-primary)' : '#9ca3af')};
-  font-size: 13px;
-  font-weight: 700;
-  border-bottom: 2px solid
-    ${({ $active }) => ($active ? 'var(--season-primary)' : 'transparent')};
-  transition: color 120ms ease, border-color 120ms ease;
-`;
-
 const ModalScrollContent = styled.div`
   min-height: 0;
   display: grid;
   gap: 14px;
   padding: 16px 18px 18px;
   overflow-y: auto;
-`;
-
-const BackLink = styled.button`
-  justify-self: start;
-  color: #6b7280;
-  font-size: 13px;
-  font-weight: 700;
-  background: transparent;
-
-  &:hover {
-    color: var(--season-primary);
-  }
 `;
 
 const ImportPreviewImage = styled.img`

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 
-function RetryButton({ color, onClick }) {
+function RetryButton({ color, disabled = false, onClick }) {
   const [isBouncing, setIsBouncing] = useState(false);
 
   useEffect(() => {
@@ -15,12 +15,20 @@ function RetryButton({ color, onClick }) {
   }, [isBouncing]);
 
   const handleClick = (event) => {
+    if (disabled) return;
+
     setIsBouncing(true);
     onClick?.(event);
   };
 
   return (
-    <Button type="button" $color={color} $bouncing={isBouncing} onClick={handleClick}>
+    <Button
+      type="button"
+      $color={color}
+      $bouncing={isBouncing}
+      disabled={disabled}
+      onClick={handleClick}
+    >
       <Icon aria-hidden="true">↻</Icon>
       <Label>Retry</Label>
     </Button>
