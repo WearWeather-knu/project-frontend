@@ -17,7 +17,9 @@ function OutfitCarousel({ items, seasonTheme }) {
   const { isLiked, toggleLikedOutfit } = useLikedOutfits();
   const isDragging = useRef(false);
   const hasDragged = useRef(false);
+  const isHorizontalDrag = useRef(false);
   const startX = useRef(0);
+  const startY = useRef(0);
   const scrollStart = useRef(0);
   const gestureStartIndex = useRef(0);
   const snapTimer = useRef(null);
@@ -59,34 +61,45 @@ function OutfitCarousel({ items, seasonTheme }) {
     }
   };
 
-  const handlePointerDown = (e) => {
-    if (e.button !== undefined && e.button !== 0) return;
-
+  const startDrag = (clientX, clientY = 0) => {
     const track = trackRef.current;
     if (!track) return;
 
     clearTimeout(snapTimer.current);
     isDragging.current = true;
     hasDragged.current = false;
-    startX.current = e.clientX;
+    isHorizontalDrag.current = false;
+    startX.current = clientX;
+    startY.current = clientY;
     scrollStart.current = track.scrollLeft;
     gestureStartIndex.current = currentIndex;
     track.style.scrollBehavior = 'auto';
-    track.setPointerCapture?.(e.pointerId);
   };
 
-  const handlePointerMove = (e) => {
+  const moveDrag = (clientX, clientY = 0) => {
     if (!isDragging.current) return;
 
     const track = trackRef.current;
     if (!track) return;
 
-    const dist = e.clientX - startX.current;
-    if (Math.abs(dist) > CLICK_DRAG_THRESHOLD) hasDragged.current = true;
-    track.scrollLeft = scrollStart.current - dist;
+    const distX = clientX - startX.current;
+    const distY = clientY - startY.current;
+
+    if (
+      !isHorizontalDrag.current &&
+      Math.abs(distX) > CLICK_DRAG_THRESHOLD &&
+      Math.abs(distX) > Math.abs(distY)
+    ) {
+      isHorizontalDrag.current = true;
+    }
+
+    if (!isHorizontalDrag.current) return;
+
+    hasDragged.current = true;
+    track.scrollLeft = scrollStart.current - distX;
   };
 
-  const handlePointerUp = (e) => {
+  const endDrag = (clientX) => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
@@ -94,8 +107,7 @@ function OutfitCarousel({ items, seasonTheme }) {
     if (!track) return;
 
     const slideSize = getSlideSize(track);
-    const dist =
-      typeof e.clientX === 'number' ? e.clientX - startX.current : 0;
+    const dist = typeof clientX === 'number' ? clientX - startX.current : 0;
     const threshold = Math.min(MIN_SWIPE_DISTANCE, slideSize * 0.15);
     let targetIndex = gestureStartIndex.current;
 
@@ -106,11 +118,10 @@ function OutfitCarousel({ items, seasonTheme }) {
     targetIndex = clamp(targetIndex, 0, items.length - 1);
 
     track.style.scrollBehavior = '';
-    track.releasePointerCapture?.(e.pointerId);
     snapToIndex(track, targetIndex);
   };
 
-  const handlePointerCancel = (e) => {
+  const cancelDrag = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
@@ -118,8 +129,45 @@ function OutfitCarousel({ items, seasonTheme }) {
     if (!track) return;
 
     track.style.scrollBehavior = '';
-    track.releasePointerCapture?.(e.pointerId);
     snapToIndex(track, gestureStartIndex.current);
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+
+    startDrag(e.clientX, e.clientY);
+  };
+
+  const handleMouseMove = (e) => {
+    moveDrag(e.clientX, e.clientY);
+  };
+
+  const handleMouseUp = (e) => {
+    endDrag(e.clientX);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    startDrag(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    moveDrag(touch.clientX, touch.clientY);
+
+    if (isHorizontalDrag.current) {
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    const touch = e.changedTouches[0];
+
+    endDrag(touch?.clientX);
   };
 
   const handleClick = (e) => {
@@ -143,10 +191,14 @@ function OutfitCarousel({ items, seasonTheme }) {
         <Track
           ref={trackRef}
           onScroll={handleScroll}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerCancel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={cancelDrag}
           onClickCapture={handleClick}
           onDragStart={(e) => e.preventDefault()}
         >
@@ -194,7 +246,7 @@ const Viewport = styled.div`
 const Track = styled.div`
   display: flex;
   gap: ${CARD_GAP}px;
-  overflow-x: auto;
+  overflow-x: hidden;
   padding: 12px 20px;
   scrollbar-width: none;
   cursor: grab;
