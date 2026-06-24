@@ -1,7 +1,7 @@
 import { useTheme } from 'styled-components';
 
 const ACTIVE_SEASON_KEY = 'wear-weather-active-season';
-const DEFAULT_SEASON = 'spring';
+const DEFAULT_SEASON = 'winter';
 
 export function getActiveSeason() {
   if (typeof window === 'undefined') return DEFAULT_SEASON;
@@ -18,7 +18,8 @@ export function setActiveSeason(season) {
 export function useSeasonTheme() {
   const theme = useTheme();
   const season = getActiveSeason();
-  const seasonTheme = theme.colors.seasons[season] ?? theme.colors.seasons[DEFAULT_SEASON];
+  const seasonTheme =
+    theme.colors.seasons[season] ?? theme.colors.seasons[DEFAULT_SEASON];
 
   return {
     season,

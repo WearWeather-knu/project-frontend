@@ -2,9 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { getWeatherComparison } from '@/api/weather';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
+import {
+  WEATHER_COMPARISON_LOCATION,
+  isValidComparisonData,
+  readWeatherComparisonCache,
+  writeWeatherComparisonCache,
+} from '@/utils/weatherComparisonCache';
 
-const comparisonLocation = '대구광역시, 북구';
-const WEATHER_COMPARISON_CACHE_KEY = `weather-comparison:${comparisonLocation}`;
+const comparisonLocation = WEATHER_COMPARISON_LOCATION;
 
 const conditionLabels = {
   'thunderstorm with light rain': '천둥번개',
@@ -102,55 +107,6 @@ const isPositiveNumber = (value) => {
   const number = Number(value);
 
   return Number.isFinite(number) && number > 0;
-};
-
-const getNextMidnightTimestamp = () => {
-  const nextMidnight = new Date();
-  nextMidnight.setHours(24, 0, 0, 0);
-
-  return nextMidnight.getTime();
-};
-
-const isValidComparisonData = (data) => Boolean(data?.today && data?.yesterday);
-
-const readWeatherComparisonCache = () => {
-  try {
-    const cachedValue = window.localStorage.getItem(
-      WEATHER_COMPARISON_CACHE_KEY,
-    );
-
-    if (!cachedValue) return null;
-
-    const cachedPayload = JSON.parse(cachedValue);
-
-    if (
-      !cachedPayload?.expiresAt ||
-      Date.now() >= cachedPayload.expiresAt ||
-      !isValidComparisonData(cachedPayload.data)
-    ) {
-      window.localStorage.removeItem(WEATHER_COMPARISON_CACHE_KEY);
-      return null;
-    }
-
-    return cachedPayload.data;
-  } catch {
-    window.localStorage.removeItem(WEATHER_COMPARISON_CACHE_KEY);
-    return null;
-  }
-};
-
-const writeWeatherComparisonCache = (data) => {
-  try {
-    window.localStorage.setItem(
-      WEATHER_COMPARISON_CACHE_KEY,
-      JSON.stringify({
-        expiresAt: getNextMidnightTimestamp(),
-        data,
-      }),
-    );
-  } catch {
-    // localStorage can fail in private browsing or restricted environments.
-  }
 };
 
 const getUvIndexLevel = (value) => {
@@ -399,7 +355,9 @@ function ComparisonPage() {
                 <WeatherMain>
                   <WeatherTextGroup>
                     <Condition>{day.condition}</Condition>
-                    <Temperature>{day.avgTemp}℃</Temperature>
+                    <Temperature $primary={seasonTheme.primary}>
+                      {day.avgTemp}℃
+                    </Temperature>
                   </WeatherTextGroup>
                   <WeatherIcon
                     $primary={seasonTheme.primary}
@@ -424,7 +382,9 @@ function ComparisonPage() {
                   $primary={seasonTheme.primary}
                   $muted={day.id === 'yesterday'}
                 >
-                  <OutfitLabel>날씨 정보</OutfitLabel>
+                  <OutfitLabel $primary={seasonTheme.primary}>
+                    날씨 정보
+                  </OutfitLabel>
                   <Outfit>{createEnvironmentText(day)}</Outfit>
                 </OutfitBox>
               </WeatherCard>
@@ -479,7 +439,7 @@ function ComparisonSkeleton({ primary }) {
               <SkeletonMetaGridBlock />
             </MetaGrid>
             <OutfitBox $primary={primary} $muted={day.id === 'yesterday'}>
-              <OutfitLabel>날씨 정보</OutfitLabel>
+              <OutfitLabel $primary={primary}>날씨 정보</OutfitLabel>
               <SkeletonOutfitTextBlock />
             </OutfitBox>
           </WeatherCard>
@@ -675,7 +635,7 @@ const WeatherTextGroup = styled.div`
 
 const Temperature = styled.p`
   margin: 0;
-  color: #448662;
+  color: ${({ $primary }) => $primary};
   font-family: 'Coda Caption', sans-serif;
   font-size: 32px;
   font-weight: 700;
@@ -768,7 +728,7 @@ const OutfitBox = styled.div`
 `;
 
 const OutfitLabel = styled.span`
-  color: #448662;
+  color: ${({ $primary }) => $primary};
   font-size: 8px;
 `;
 

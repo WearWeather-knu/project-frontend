@@ -10,7 +10,7 @@ const GlobalStyle = createGlobalStyle`
     src: url('/KyoboHandwriting2025lyb.otf') format('opentype');
     font-weight: 400;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
   }
 
   * {

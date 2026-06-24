@@ -3,8 +3,16 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
 import closetArtwork from '@/assets/CLOSET.png';
-import { previewClothesImport, importClothes } from '@/api/clothes';
-import { getWeatherComparison } from '@/api/weather';
+import {
+  getClothes,
+  previewClothesImport,
+  importClothes,
+  updateClothesFavorite,
+} from '@/api/clothes';
+import {
+  WEATHER_COMPARISON_LOCATION,
+  readWeatherComparisonCache,
+} from '@/utils/weatherComparisonCache';
 
 const closetCategories = [
   {
@@ -65,12 +73,45 @@ const spacedCategoryLabels = {
   신발: '신 발',
   전체: '전 체',
 };
+
+const detailSelectLabels = {
+  선택안함: '선택 안 함',
+  민소매: '민소매',
+  반소매: '반소매',
+  칠부: '칠부',
+  긴소매: '긴소매',
+  얇음: '얇음',
+  보통: '보통',
+  두꺼움: '두꺼움',
+  슬림: '슬림',
+  레귤러: '레귤러',
+  루즈: '루즈',
+  오버핏: '오버핏',
+};
+
 const categoryByKey = Object.fromEntries(
   closetCategories.map((category) => [category.key, category]),
 );
 const allCategory = { key: 'all', label: '전체' };
 
 const colorMap = {
+  WHITE: '#F8FAFC',
+  BLACK: '#111827',
+  GRAY: '#9CA3AF',
+  BEIGE: '#EAD7B7',
+  BROWN: '#8B5E3C',
+  NAVY: '#31326F',
+  BLUE: '#3B82F6',
+  GREEN: '#22C55E',
+  YELLOW: '#FACC15',
+  ORANGE: '#F97316',
+  RED: '#EF4444',
+  PINK: '#F9A8D4',
+  PURPLE: '#8B5CF6',
+  SILVER: '#D8DEE9',
+  GOLD: '#D4AF37',
+  MULTI: '#7DD3FC',
+  OTHER: '#D8DEE9',
   화이트: '#F8FAFC',
   블랙: '#111827',
   그레이: '#9CA3AF',
@@ -99,6 +140,188 @@ const importCategoryOptions = [
   { value: 'SHOES', label: '신발' },
 ];
 
+const sleeveLengthOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'SLEEVELESS', label: '민소매' },
+  { value: 'SHORT', label: '반소매' },
+  { value: 'THREE_QUARTER', label: '칠부' },
+  { value: 'LONG', label: '긴소매' },
+];
+
+const thicknessOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'THIN', label: '얇음' },
+  { value: 'NORMAL', label: '보통' },
+  { value: 'THICK', label: '두꺼움' },
+];
+
+const fitOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'SLIM', label: '슬림' },
+  { value: 'REGULAR', label: '레귤러' },
+  { value: 'LOOSE', label: '루즈' },
+  { value: 'OVERSIZED', label: '오버핏' },
+];
+
+const materialOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'COTTON', label: '면' },
+  { value: 'POLYESTER', label: '폴리에스터' },
+  { value: 'NYLON', label: '나일론' },
+  { value: 'WOOL', label: '울' },
+  { value: 'CASHMERE', label: '캐시미어' },
+  { value: 'LINEN', label: '린넨' },
+  { value: 'DENIM', label: '데님' },
+  { value: 'LEATHER', label: '가죽' },
+  { value: 'SUEDE', label: '스웨이드' },
+  { value: 'DOWN', label: '다운' },
+  { value: 'FLEECE', label: '플리스' },
+  { value: 'SYNTHETIC', label: '합성섬유' },
+  { value: 'MIXED', label: '혼방' },
+  { value: 'OTHER', label: '기타' },
+];
+
+const colorOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'BLACK', label: '블랙' },
+  { value: 'WHITE', label: '화이트' },
+  { value: 'GRAY', label: '그레이' },
+  { value: 'BEIGE', label: '베이지' },
+  { value: 'BROWN', label: '브라운' },
+  { value: 'NAVY', label: '네이비' },
+  { value: 'BLUE', label: '블루' },
+  { value: 'GREEN', label: '그린' },
+  { value: 'YELLOW', label: '옐로우' },
+  { value: 'ORANGE', label: '오렌지' },
+  { value: 'RED', label: '레드' },
+  { value: 'PINK', label: '핑크' },
+  { value: 'PURPLE', label: '퍼플' },
+  { value: 'SILVER', label: '실버' },
+  { value: 'GOLD', label: '골드' },
+  { value: 'MULTI', label: '멀티' },
+  { value: 'OTHER', label: '기타' },
+];
+
+const shoeTypeOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'SNEAKERS', label: '스니커즈' },
+  { value: 'BOOTS', label: '부츠' },
+  { value: 'LOAFERS', label: '로퍼' },
+  { value: 'DRESS_SHOES', label: '구두' },
+  { value: 'SANDALS', label: '샌들' },
+  { value: 'SLIPPERS', label: '슬리퍼' },
+  { value: 'OTHER', label: '기타' },
+];
+
+const accTypeOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'HAT', label: '모자' },
+  { value: 'CAP', label: '캡' },
+  { value: 'BEANIE', label: '비니' },
+  { value: 'SCARF', label: '스카프' },
+  { value: 'GLOVES', label: '장갑' },
+  { value: 'BELT', label: '벨트' },
+  { value: 'JEWELRY', label: '주얼리' },
+  { value: 'OTHER', label: '기타' },
+];
+
+const bagTypeOptions = [
+  { value: '', label: '선택안함' },
+  { value: 'BACKPACK', label: '백팩' },
+  { value: 'TOTE', label: '토트백' },
+  { value: 'SHOULDER', label: '숄더백' },
+  { value: 'CROSSBODY', label: '크로스백' },
+  { value: 'CLUTCH', label: '클러치' },
+  { value: 'DUFFEL', label: '더플백' },
+  { value: 'OTHER', label: '기타' },
+];
+
+const sleeveLengthValues = new Set(sleeveLengthOptions.map(({ value }) => value));
+const thicknessValues = new Set(thicknessOptions.map(({ value }) => value));
+const fitValues = new Set(fitOptions.map(({ value }) => value));
+const materialValues = new Set(materialOptions.map(({ value }) => value));
+const colorValues = new Set(colorOptions.map(({ value }) => value));
+const typeValuesByCategory = {
+  SHOES: new Set(shoeTypeOptions.map(({ value }) => value)),
+  ACC: new Set(accTypeOptions.map(({ value }) => value)),
+  BAG: new Set(bagTypeOptions.map(({ value }) => value)),
+};
+const typeValues = new Set([
+  ...shoeTypeOptions,
+  ...accTypeOptions,
+  ...bagTypeOptions,
+].map(({ value }) => value));
+
+const detailOptionAliases = {
+  롱: 'LONG',
+  긴소매: 'LONG',
+  숏: 'SHORT',
+  반소매: 'SHORT',
+  민소매: 'SLEEVELESS',
+  칠부: 'THREE_QUARTER',
+  두꺼움: 'THICK',
+  보통: 'NORMAL',
+  얇음: 'THIN',
+  슬림: 'SLIM',
+  스탠다드: 'REGULAR',
+  레귤러: 'REGULAR',
+  루즈: 'LOOSE',
+  오버: 'OVERSIZED',
+  오버핏: 'OVERSIZED',
+  면: 'COTTON',
+  코튼: 'COTTON',
+  폴리에스터: 'POLYESTER',
+  나일론: 'NYLON',
+  울: 'WOOL',
+  캐시미어: 'CASHMERE',
+  린넨: 'LINEN',
+  데님: 'DENIM',
+  가죽: 'LEATHER',
+  스웨이드: 'SUEDE',
+  다운: 'DOWN',
+  플리스: 'FLEECE',
+  합성섬유: 'SYNTHETIC',
+  혼방: 'MIXED',
+  기타: 'OTHER',
+  블랙: 'BLACK',
+  화이트: 'WHITE',
+  그레이: 'GRAY',
+  베이지: 'BEIGE',
+  브라운: 'BROWN',
+  네이비: 'NAVY',
+  블루: 'BLUE',
+  그린: 'GREEN',
+  옐로우: 'YELLOW',
+  노랑: 'YELLOW',
+  오렌지: 'ORANGE',
+  레드: 'RED',
+  핑크: 'PINK',
+  퍼플: 'PURPLE',
+  실버: 'SILVER',
+  골드: 'GOLD',
+  멀티: 'MULTI',
+  스니커즈: 'SNEAKERS',
+  운동화: 'SNEAKERS',
+  부츠: 'BOOTS',
+  로퍼: 'LOAFERS',
+  구두: 'DRESS_SHOES',
+  샌들: 'SANDALS',
+  슬리퍼: 'SLIPPERS',
+  모자: 'HAT',
+  캡: 'CAP',
+  비니: 'BEANIE',
+  스카프: 'SCARF',
+  장갑: 'GLOVES',
+  벨트: 'BELT',
+  주얼리: 'JEWELRY',
+  백팩: 'BACKPACK',
+  토트백: 'TOTE',
+  숄더백: 'SHOULDER',
+  크로스백: 'CROSSBODY',
+  클러치: 'CLUTCH',
+  더플백: 'DUFFEL',
+};
+
 const categoryToApiEnum = {
   outer: 'OUTER',
   top: 'TOP',
@@ -117,30 +340,17 @@ const categoryApiToDisplay = {
   SHOES: '신발',
 };
 
-const importDetailLabels = {
-  sleeveLength: '소매 길이',
-  thickness: '두께',
-  fit: '핏',
-  material: '소재',
-  color: '색상',
-  length: '기장',
-  type: '종류',
-  windproof: '방풍',
-  waterproof: '방수',
-  warmthBonus: '보온 지수',
-};
-
 const importDetailDefaults = {
   sleeveLength: '',
   thickness: '',
   fit: '',
   material: '',
   color: '',
-  length: '',
-  type: '',
-  windproof: false,
-  waterproof: false,
-  warmthBonus: 0,
+  length: null,
+  type: null,
+  windproof: null,
+  waterproof: null,
+  warmthBonus: null,
 };
 
 const fallbackColor = '#D8DEE9';
@@ -149,28 +359,63 @@ const defaultClothingImage = encodeURI(
 );
 const lightColorValues = new Set(['#ffffff', '#fff', '#f8fafc', '#f4f5f7']);
 const isLightColor = (color) => lightColorValues.has(color.toLowerCase());
-const WEATHER_LOCATION_NAME = '대구광역시, 북구';
-
 const toFiniteNumber = (value, fallback = 0) => {
   const numberValue = Number(value);
 
   return Number.isFinite(numberValue) ? numberValue : fallback;
 };
 
+const toNullableText = (value) => {
+  const textValue = String(value ?? '').trim();
+
+  return textValue || null;
+};
+
+const toOptionValue = (value, validValues) => {
+  const textValue = String(value ?? '').trim();
+  const upperValue = textValue.toUpperCase();
+  const normalizedValue = detailOptionAliases[textValue] ?? upperValue;
+
+  return validValues.has(normalizedValue) ? normalizedValue : '';
+};
+
+const getTypeOptionsForCategory = (category) => {
+  if (category === 'SHOES') return shoeTypeOptions;
+  if (category === 'ACC') return accTypeOptions;
+  if (category === 'BAG') return bagTypeOptions;
+
+  return [];
+};
+
+const getTypeValuesForCategory = (category) =>
+  typeValuesByCategory[category] ?? new Set(['']);
+
 const normalizeImportDetails = (details = {}) => ({
-  sleeveLength: details.sleeveLength ?? importDetailDefaults.sleeveLength,
-  thickness: details.thickness ?? importDetailDefaults.thickness,
-  fit: details.fit ?? importDetailDefaults.fit,
-  material: details.material ?? importDetailDefaults.material,
-  color: details.color ?? importDetailDefaults.color,
-  length: details.length ?? importDetailDefaults.length,
-  type: details.type ?? importDetailDefaults.type,
-  windproof: Boolean(details.windproof),
-  waterproof: Boolean(details.waterproof),
-  warmthBonus: toFiniteNumber(
-    details.warmthBonus,
-    importDetailDefaults.warmthBonus,
+  sleeveLength: toOptionValue(details.sleeveLength, sleeveLengthValues),
+  thickness: toOptionValue(details.thickness, thicknessValues),
+  fit: toOptionValue(details.fit, fitValues),
+  material: toOptionValue(details.material, materialValues),
+  color: toOptionValue(details.color, colorValues),
+  length: null,
+  type: toOptionValue(details.type, typeValues),
+  windproof: null,
+  waterproof: null,
+  warmthBonus: null,
+});
+
+const createImportDetailsPayload = (details = {}, category) => ({
+  sleeveLength: toNullableText(details.sleeveLength),
+  thickness: toNullableText(details.thickness),
+  fit: toNullableText(details.fit),
+  material: toNullableText(details.material),
+  color: toNullableText(details.color),
+  length: null,
+  type: toNullableText(
+    toOptionValue(details.type, getTypeValuesForCategory(category)),
   ),
+  windproof: null,
+  waterproof: null,
+  warmthBonus: null,
 });
 
 const getWeatherTemperatureRange = (weather) => {
@@ -189,56 +434,6 @@ const getItemColors = (item) => {
   return nextColors.filter(Boolean);
 };
 
-const closetItems = [
-  {
-    id: 1,
-    name: '아이보리 니트',
-    category: '상의',
-    seasons: ['봄', '가을'],
-    weather: '12°~18°',
-    color: '#F6E8D7',
-  },
-  {
-    id: 2,
-    name: '라이트 데님',
-    category: '하의',
-    seasons: ['봄', '여름', '가을'],
-    weather: '16°~24°',
-    color: '#9DB7D5',
-  },
-  {
-    id: 3,
-    name: '네이비 트렌치',
-    category: '아우터',
-    seasons: ['봄', '가을'],
-    weather: '10°~17°',
-    color: '#31326F',
-  },
-  {
-    id: 4,
-    name: '화이트 스니커즈',
-    category: '신발',
-    seasons: ['사계절'],
-    weather: '맑은 날',
-    color: '#F4F5F7',
-  },
-  {
-    id: 5,
-    name: '실버 미니백',
-    category: '가방',
-    seasons: ['사계절'],
-    weather: '외출용',
-    color: '#D8DEE9',
-  },
-  {
-    id: 6,
-    name: '블랙 슬랙스',
-    category: '하의',
-    seasons: ['봄', '가을', '겨울'],
-    weather: '8°~19°',
-    color: '#222831',
-  },
-];
 
 function ClosetPage() {
   const navigate = useNavigate();
@@ -246,8 +441,11 @@ function ClosetPage() {
   const { seasonTheme } = useSeasonTheme();
   const selectedCategory =
     category === allCategory.key ? allCategory : category ? categoryByKey[category] : null;
-  const [items, setItems] = useState(closetItems);
+  const [items, setItems] = useState([]);
+  const [clothesLoading, setClothesLoading] = useState(true);
   const [likedItemIds, setLikedItemIds] = useState([]);
+  const [favoritePendingItemIds, setFavoritePendingItemIds] = useState([]);
+  const [closetError, setClosetError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [importCategory, setImportCategory] = useState('OUTER');
@@ -257,8 +455,9 @@ function ClosetPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importError, setImportError] = useState('');
+  const [importDetails, setImportDetails] = useState(importDetailDefaults);
+  const [acceptCategoryMismatch, setAcceptCategoryMismatch] = useState(false);
   const [todayWeatherRange, setTodayWeatherRange] = useState(null);
-  const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState('');
 
   const filteredItems = useMemo(() => {
@@ -278,8 +477,9 @@ function ClosetPage() {
     setImportLoading(false);
     setImportSubmitting(false);
     setImportError('');
+    setImportDetails(importDetailDefaults);
+    setAcceptCategoryMismatch(false);
     setTodayWeatherRange(null);
-    setWeatherLoading(false);
     setWeatherError('');
   }, []);
 
@@ -297,30 +497,43 @@ function ClosetPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeModal, isModalOpen]);
 
+  useEffect(() => {
+    getClothes()
+      .then(({ data }) => {
+        setItems(
+          data.map((cloth) => ({
+            id: cloth.clothesId,
+            name: cloth.name,
+            category: categoryApiToDisplay[cloth.category] ?? cloth.category,
+            imageUrl: cloth.imageUrl ?? '',
+            color: fallbackColor,
+          })),
+        );
+        setLikedItemIds(
+          data.filter((cloth) => cloth.favorite).map((cloth) => cloth.clothesId),
+        );
+      })
+      .catch(() => {})
+      .finally(() => setClothesLoading(false));
+  }, []);
+
   if (category && !selectedCategory) {
     return <Navigate to="/closet" replace />;
   }
 
-  const loadTodayWeatherRange = async () => {
-    setWeatherLoading(true);
+  const loadTodayWeatherRangeFromCache = () => {
     setWeatherError('');
     setTodayWeatherRange(null);
 
-    try {
-      const { data } = await getWeatherComparison(WEATHER_LOCATION_NAME);
-      const comparisonData = data?.data ?? data;
-      const nextWeatherRange = getWeatherTemperatureRange(comparisonData?.today);
+    const comparisonData = readWeatherComparisonCache(WEATHER_COMPARISON_LOCATION);
+    const nextWeatherRange = getWeatherTemperatureRange(comparisonData?.today);
 
-      if (!nextWeatherRange) {
-        throw new Error('Invalid weather range');
-      }
-
-      setTodayWeatherRange(nextWeatherRange);
-    } catch {
-      setWeatherError('오늘 최저/최고 온도를 불러오지 못했습니다.');
-    } finally {
-      setWeatherLoading(false);
+    if (!nextWeatherRange) {
+      setWeatherError('날씨 비교 페이지에서 날씨를 먼저 불러와 주세요.');
+      return;
     }
+
+    setTodayWeatherRange(nextWeatherRange);
   };
 
   const openModal = () => {
@@ -331,17 +544,43 @@ function ClosetPage() {
 
     setImportCategory(routeApiCategory);
     setImportConfirmCategory(routeApiCategory);
+    setAcceptCategoryMismatch(false);
     setImportError('');
     setIsModalOpen(true);
-    loadTodayWeatherRange();
+    loadTodayWeatherRangeFromCache();
   };
 
-  const toggleLikedItem = (itemId) => {
+  const toggleLikedItem = async (itemId) => {
+    if (favoritePendingItemIds.includes(itemId)) return;
+
+    const wasLiked = likedItemIds.includes(itemId);
+    const nextFavorite = !wasLiked;
+
+    setClosetError('');
+    setFavoritePendingItemIds((currentPendingItemIds) => [
+      ...currentPendingItemIds,
+      itemId,
+    ]);
     setLikedItemIds((currentLikedItemIds) =>
-      currentLikedItemIds.includes(itemId)
-        ? currentLikedItemIds.filter((currentItemId) => currentItemId !== itemId)
-        : [...currentLikedItemIds, itemId],
+      nextFavorite
+        ? [...currentLikedItemIds, itemId]
+        : currentLikedItemIds.filter((currentItemId) => currentItemId !== itemId),
     );
+
+    try {
+      await updateClothesFavorite(itemId, nextFavorite);
+    } catch {
+      setLikedItemIds((currentLikedItemIds) =>
+        wasLiked
+          ? [...new Set([...currentLikedItemIds, itemId])]
+          : currentLikedItemIds.filter((currentItemId) => currentItemId !== itemId),
+      );
+      setClosetError('좋아요 변경에 실패했습니다. 다시 시도해 주세요.');
+    } finally {
+      setFavoritePendingItemIds((currentPendingItemIds) =>
+        currentPendingItemIds.filter((currentItemId) => currentItemId !== itemId),
+      );
+    }
   };
 
   const handleFetchPreview = async () => {
@@ -352,6 +591,7 @@ function ClosetPage() {
     setImportLoading(true);
     setImportError('');
     setImportPreview(null);
+    setAcceptCategoryMismatch(false);
     try {
       const previewCategory = importPreview
         ? importConfirmCategory
@@ -360,11 +600,14 @@ function ClosetPage() {
         category: previewCategory,
         originalUrl: importUrl.trim(),
       });
+      const nextDetails = normalizeImportDetails(data.details);
       setImportPreview(data);
       setImportConfirmName(data.common?.name ?? '');
       setImportConfirmCategory(
         data.detectedCategory || data.requestedCategory || previewCategory,
       );
+      setImportDetails(nextDetails);
+      setAcceptCategoryMismatch(false);
     } catch {
       setImportError('미리보기를 불러오지 못했습니다. URL을 확인해 주세요.');
     } finally {
@@ -377,7 +620,24 @@ function ClosetPage() {
     setImportPreview(null);
     setImportConfirmName('');
     setImportConfirmCategory(importCategory);
+    setImportDetails(importDetailDefaults);
+    setAcceptCategoryMismatch(false);
     setImportError('');
+  };
+
+  const handleImportDetailChange = (key, value) => {
+    setImportDetails((currentDetails) => ({
+      ...currentDetails,
+      [key]: value,
+    }));
+  };
+
+  const handleImportConfirmCategoryChange = (nextCategory) => {
+    setImportConfirmCategory(nextCategory);
+    setImportDetails((currentDetails) => ({
+      ...currentDetails,
+      type: '',
+    }));
   };
 
   const handleImportSubmit = async () => {
@@ -395,10 +655,19 @@ function ClosetPage() {
       return;
     }
 
+    if (importPreview.categoryMismatch && !acceptCategoryMismatch) {
+      setImportError('감지된 카테고리와 다르게 등록하려면 동의가 필요합니다.');
+      return;
+    }
+
     setImportSubmitting(true);
     setImportError('');
     try {
-      const normalizedDetails = normalizeImportDetails(importPreview.details);
+      const normalizedDetails = normalizeImportDetails(importDetails);
+      const detailsPayload = createImportDetailsPayload(
+        normalizedDetails,
+        importConfirmCategory,
+      );
       const { minTemp, maxTemp } = todayWeatherRange;
       const { data: importedClothes } = await importClothes({
         analysisToken: importPreview.analysisToken,
@@ -406,14 +675,16 @@ function ClosetPage() {
         category: importConfirmCategory,
         minTemp,
         maxTemp,
-        details: normalizedDetails,
-        acceptCategoryMismatch: Boolean(importPreview.categoryMismatch),
+        details: detailsPayload,
+        acceptCategoryMismatch: Boolean(
+          importPreview.categoryMismatch && acceptCategoryMismatch,
+        ),
       });
 
       const importedCategory = importedClothes?.category ?? importConfirmCategory;
       const displayCategory =
         categoryApiToDisplay[importedCategory] ?? importedCategory;
-      const colorName = normalizedDetails.color || '기타';
+      const colorName = detailsPayload.color || '기타';
       const color = colorMap[colorName] ?? fallbackColor;
       const newItem = {
         id: importedClothes?.clothesId ?? Date.now(),
@@ -428,8 +699,8 @@ function ClosetPage() {
           importedClothes?.imageUrl ??
           importPreview.common?.imagePreviewUrl ??
           '',
-        length: normalizedDetails.length,
-        material: normalizedDetails.material,
+        length: detailsPayload.length,
+        material: detailsPayload.material,
         weather: `${minTemp}°~${maxTemp}°`,
       };
       setItems((prev) => [newItem, ...prev]);
@@ -461,7 +732,10 @@ function ClosetPage() {
       category={selectedCategory}
       seasonTheme={seasonTheme}
       items={filteredItems}
+      clothesLoading={clothesLoading}
       likedItemIds={likedItemIds}
+      favoritePendingItemIds={favoritePendingItemIds}
+      closetError={closetError}
       isModalOpen={isModalOpen}
       onChangeCategory={(categoryKey) => navigate(`/closet/${categoryKey}`)}
       onOpenModal={openModal}
@@ -475,13 +749,16 @@ function ClosetPage() {
       importLoading={importLoading}
       importSubmitting={importSubmitting}
       importError={importError}
+      importDetails={importDetails}
+      acceptCategoryMismatch={acceptCategoryMismatch}
       todayWeatherRange={todayWeatherRange}
-      weatherLoading={weatherLoading}
       weatherError={weatherError}
       onImportUrlChange={handleImportUrlChange}
       onImportCategoryChange={setImportCategory}
       onImportConfirmNameChange={setImportConfirmName}
-      onImportConfirmCategoryChange={setImportConfirmCategory}
+      onImportConfirmCategoryChange={handleImportConfirmCategoryChange}
+      onImportDetailChange={handleImportDetailChange}
+      onAcceptCategoryMismatchChange={setAcceptCategoryMismatch}
       onFetchPreview={handleFetchPreview}
       onImportSubmit={handleImportSubmit}
     />
@@ -530,7 +807,10 @@ function CustomSelect({
   const [isOpen, setIsOpen] = useState(false);
   const selectedOption = options.find((option) => option.value === value);
   const selectedLabel =
-    spacedCategoryLabels[selectedOption?.label] ?? selectedOption?.label ?? '';
+    spacedCategoryLabels[selectedOption?.label] ??
+    detailSelectLabels[selectedOption?.label] ??
+    selectedOption?.label ??
+    '';
 
   const handleSelect = (nextValue) => {
     onChange(nextValue);
@@ -573,7 +853,10 @@ function ClosetCategoryView({
   category,
   seasonTheme,
   items,
+  clothesLoading,
   likedItemIds,
+  favoritePendingItemIds,
+  closetError,
   isModalOpen,
   onChangeCategory,
   onOpenModal,
@@ -587,13 +870,16 @@ function ClosetCategoryView({
   importLoading,
   importSubmitting,
   importError,
+  importDetails,
+  acceptCategoryMismatch,
   todayWeatherRange,
-  weatherLoading,
   weatherError,
   onImportUrlChange,
   onImportCategoryChange,
   onImportConfirmNameChange,
   onImportConfirmCategoryChange,
+  onImportDetailChange,
+  onAcceptCategoryMismatchChange,
   onFetchPreview,
   onImportSubmit,
 }) {
@@ -604,6 +890,8 @@ function ClosetCategoryView({
   const handleCloseModal = () => {
     onCloseModal();
   };
+
+  const typeOptions = getTypeOptionsForCategory(importConfirmCategory);
 
   return (
     <Page $background={seasonTheme.background} $primary={seasonTheme.primary}>
@@ -624,40 +912,51 @@ function ClosetCategoryView({
         />
       </CategoryHeader>
 
-      {items.length > 0 ? (
-        <ClosetGrid>
-          {items.filter(Boolean).map((item) => {
-            const itemColors = getItemColors(item);
-            const isLiked = likedItemIds.includes(item.id);
+      {clothesLoading ? (
+        <EmptyState>
+          <EmptyText>옷 목록을 불러오는 중...</EmptyText>
+        </EmptyState>
+      ) : items.length > 0 ? (
+        <>
+          {closetError && (
+            <InlineErrorText role="alert">{closetError}</InlineErrorText>
+          )}
+          <ClosetGrid>
+            {items.filter(Boolean).map((item) => {
+              const itemColors = getItemColors(item);
+              const isLiked = likedItemIds.includes(item.id);
+              const isFavoritePending = favoritePendingItemIds.includes(item.id);
 
-            return (
-              <ClosetCard key={item.id}>
-                <ItemImage
-                  src={item.imageUrl || defaultClothingImage}
-                  alt={item.name}
-                />
-                <LikeButton
-                  type="button"
-                  aria-label={`${item.name} 좋아요${isLiked ? ' 해제' : ''}`}
-                  aria-pressed={isLiked}
-                  $active={isLiked}
-                  onClick={() => onToggleLikedItem(item.id)}
-                >
-                  <HeartIcon />
-                </LikeButton>
-                <ColorDotRow aria-label="선택한 색상">
-                  {itemColors.map((color, index) => (
-                    <ColorDot
-                      key={`${item.id}-${color}-${index}`}
-                      $color={color}
-                      $isLight={isLightColor(color)}
-                    />
-                  ))}
-                </ColorDotRow>
-              </ClosetCard>
-            );
-          })}
-        </ClosetGrid>
+              return (
+                <ClosetCard key={item.id}>
+                  <ItemImage
+                    src={item.imageUrl || defaultClothingImage}
+                    alt={item.name}
+                  />
+                  <LikeButton
+                    type="button"
+                    aria-label={`${item.name} 좋아요${isLiked ? ' 해제' : ''}`}
+                    aria-pressed={isLiked}
+                    $active={isLiked}
+                    disabled={isFavoritePending}
+                    onClick={() => onToggleLikedItem(item.id)}
+                  >
+                    <HeartIcon />
+                  </LikeButton>
+                  <ColorDotRow aria-label="선택한 색상">
+                    {itemColors.map((color, index) => (
+                      <ColorDot
+                        key={`${item.id}-${color}-${index}`}
+                        $color={color}
+                        $isLight={isLightColor(color)}
+                      />
+                    ))}
+                  </ColorDotRow>
+                </ClosetCard>
+              );
+            })}
+          </ClosetGrid>
+        </>
       ) : (
         <EmptyState>
           <EmptyTitle $textColor={seasonTheme.text}>
@@ -746,11 +1045,6 @@ function ClosetCategoryView({
                   <Field>
                     <Label as="span">
                       등록 카테고리
-                      {importPreview.categoryMismatch && (
-                        <CategoryMismatchTag>
-                          감지 카테고리 불일치
-                        </CategoryMismatchTag>
-                      )}
                     </Label>
                     <CustomSelect
                       ariaLabel="등록 카테고리"
@@ -759,41 +1053,107 @@ function ClosetCategoryView({
                       onChange={onImportConfirmCategoryChange}
                     />
                   </Field>
+
+                  {importPreview.categoryMismatch && (
+                    <MismatchConsentBox>
+                      <MismatchNotice>
+                        감지된 카테고리와 등록 카테고리가 다릅니다.
+                      </MismatchNotice>
+                      <CheckboxLabel>
+                        <CheckboxInput
+                          type="checkbox"
+                          checked={acceptCategoryMismatch}
+                          onChange={(e) =>
+                            onAcceptCategoryMismatchChange(e.target.checked)
+                          }
+                        />
+                        이 카테고리로 등록할게요
+                      </CheckboxLabel>
+                    </MismatchConsentBox>
+                  )}
                 </>
               )}
 
               <PreviewInfoRow>
                 <span>오늘 온도 범위</span>
                 <span>
-                  {weatherLoading
-                    ? '불러오는 중...'
-                    : todayWeatherRange
-                      ? `${todayWeatherRange.minTemp}°C ~ ${todayWeatherRange.maxTemp}°C`
-                      : '정보 없음'}
+                  {todayWeatherRange
+                    ? `${todayWeatherRange.minTemp}°C ~ ${todayWeatherRange.maxTemp}°C`
+                    : '정보 없음'}
                 </span>
               </PreviewInfoRow>
 
-              {importPreview?.details && (
-                <ImportDetailList>
-                  {Object.entries(importPreview.details)
-                    .filter(
-                      ([, v]) => v !== null && v !== '' && v !== false && v !== 0,
-                    )
-                    .map(([key, value]) => (
-                      <ImportDetailRow key={key}>
-                        <ImportDetailKey>
-                          {importDetailLabels[key] ?? key}
-                        </ImportDetailKey>
-                        <ImportDetailValue>
-                          {typeof value === 'boolean'
-                            ? value
-                              ? '있음'
-                              : '없음'
-                            : String(value)}
-                        </ImportDetailValue>
-                      </ImportDetailRow>
-                    ))}
-                </ImportDetailList>
+              {importPreview && (
+                <ImportDetailFields>
+                  <Field>
+                    <Label as="span">소매 길이</Label>
+                    <CustomSelect
+                      ariaLabel="소매 길이"
+                      value={importDetails.sleeveLength}
+                      options={sleeveLengthOptions}
+                      onChange={(value) =>
+                        onImportDetailChange('sleeveLength', value)
+                      }
+                    />
+                  </Field>
+                  <Field>
+                    <Label as="span">두께</Label>
+                    <CustomSelect
+                      ariaLabel="두께"
+                      value={importDetails.thickness}
+                      options={thicknessOptions}
+                      onChange={(value) =>
+                        onImportDetailChange('thickness', value)
+                      }
+                    />
+                  </Field>
+                  <Field>
+                    <Label as="span">핏</Label>
+                    <CustomSelect
+                      ariaLabel="핏"
+                      value={importDetails.fit}
+                      options={fitOptions}
+                      onChange={(value) =>
+                        onImportDetailChange('fit', value)
+                      }
+                    />
+                  </Field>
+                  <Field>
+                    <Label as="span">소재</Label>
+                    <CustomSelect
+                      ariaLabel="소재"
+                      value={importDetails.material}
+                      options={materialOptions}
+                      onChange={(value) =>
+                        onImportDetailChange('material', value)
+                      }
+                    />
+                  </Field>
+                  <Field>
+                    <Label as="span">색상</Label>
+                    <CustomSelect
+                      ariaLabel="색상"
+                      value={importDetails.color}
+                      options={colorOptions}
+                      onChange={(value) =>
+                        onImportDetailChange('color', value)
+                      }
+                    />
+                  </Field>
+                  {typeOptions.length > 0 && (
+                    <Field>
+                      <Label as="span">종류</Label>
+                      <CustomSelect
+                        ariaLabel="종류"
+                        value={importDetails.type}
+                        options={typeOptions}
+                        onChange={(value) =>
+                          onImportDetailChange('type', value)
+                        }
+                      />
+                    </Field>
+                  )}
+                </ImportDetailFields>
               )}
 
               {importPreview?.existingProduct && (
@@ -823,9 +1183,9 @@ function ClosetCategoryView({
                   onClick={onImportSubmit}
                   disabled={
                     importSubmitting ||
-                    weatherLoading ||
                     !todayWeatherRange ||
-                    !importPreview
+                    !importPreview ||
+                    (importPreview.categoryMismatch && !acceptCategoryMismatch)
                   }
                 >
                   {importSubmitting ? '등록 중...' : '등록하기'}
@@ -851,20 +1211,25 @@ function HeartIcon() {
 }
 
 const HomePage = styled.section`
-  min-height: calc(100% + 44px);
+  height: calc(100% + 44px);
+  min-height: 0;
   display: grid;
-  align-content: start;
+  grid-template-rows: minmax(0, 1fr);
   justify-items: stretch;
   gap: 18px;
   margin: -20px -20px -24px;
   padding: 22px 20px 30px;
   background: ${({ $background }) => $background};
   --season-primary: ${({ $primary }) => $primary};
+  overflow: hidden;
 `;
 
 const WardrobeCard = styled.section`
-  min-height: calc(100dvh - 182px);
+  min-height: 0;
+  height: 100%;
   display: grid;
+  align-items: center;
+  justify-items: center;
   gap: 19px;
   padding: 0;
   border-radius: 10px;
@@ -875,6 +1240,7 @@ const WardrobeCard = styled.section`
 const WardrobeCanvas = styled.div`
   position: relative;
   width: min(354px, 100%);
+  max-height: 100%;
   aspect-ratio: 1062 / 2049;
   justify-self: center;
   overflow: hidden;
@@ -891,13 +1257,13 @@ const WardrobeImage = styled.img`
 `;
 
 const wardrobeHotspotStyles = {
-  outer: 'left: 9%; top: 8%; width: 43.5%; height: 22.5%;',
-  top: 'left: 9%; top: 31.5%; width: 43.5%; height: 21%;',
-  bottom: 'left: 9%; top: 53.5%; width: 43.5%; height: 38%;',
-  dress: 'left: 53.2%; top: 24%; width: 37.4%; height: 48.4%;',
-  accessory: 'left: 53.2%; top: 8%; width: 37.4%; height: 12.5%;',
-  bag: 'left: 53.2%; top: 20.6%; width: 37.4%; height: 12.5%;',
-  shoes: 'left: 53.2%; top: 80%; width: 37.4%; height: 11%;',
+  outer: 'left: 9.2%; top: 7.8%; width: 40%; height: 22.4%;',
+  top: 'left: 9.2%; top: 31%; width: 40%; height: 22.2%;',
+  bottom: 'left: 9.2%; top: 54.1%; width: 40%; height: 42.5%;',
+  accessory: 'left: 50.9%; top: 7.8%; width: 40%; height: 9.8%;',
+  bag: 'left: 50.9%; top: 18.5%; width: 40%; height: 9.2%;',
+  dress: 'left: 50.9%; top: 28.4%; width: 40%; height: 57.1%;',
+  shoes: 'left: 50.9%; top: 86.3%; width: 40%; height: 10.4%;',
 };
 
 const WardrobeHotspot = styled.button`
@@ -923,7 +1289,7 @@ const Page = styled.section`
   align-content: start;
   gap: 20px;
   margin: -20px -20px -24px;
-  padding: 28px 20px 32px;
+  padding: 28px 20px 108px;
   background: ${({ $background }) => $background};
   --season-primary: ${({ $primary }) => $primary};
 `;
@@ -947,7 +1313,10 @@ const CategoryTitle = styled.h2`
 const ClosetGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 10px;
+  grid-auto-rows: max-content;
+  align-content: start;
+  row-gap: 18px;
+  column-gap: 10px;
 `;
 
 const ClosetCard = styled.article`
@@ -985,6 +1354,11 @@ const LikeButton = styled.button`
     height: 18px;
     display: block;
   }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.62;
+  }
 `;
 
 const ColorDotRow = styled.div`
@@ -1013,7 +1387,7 @@ const EmptyState = styled.div`
   align-content: center;
   gap: 10px;
   justify-items: center;
-  min-height: 260px;
+  min-height: 0;
   margin-top: 8px;
   text-align: center;
 `;
@@ -1237,6 +1611,10 @@ const ErrorText = styled.p`
   text-align: center;
 `;
 
+const InlineErrorText = styled(ErrorText)`
+  text-align: left;
+`;
+
 const ActionRow = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1278,13 +1656,18 @@ const ImportPreviewImage = styled.img`
   background: #f9fafb;
 `;
 
-const CategoryMismatchTag = styled.span`
-  margin-left: 8px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: #fef3c7;
+const MismatchConsentBox = styled.div`
+  display: grid;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: #fffbeb;
   color: #92400e;
-  font-size: 11px;
+`;
+
+const MismatchNotice = styled.p`
+  margin: 0;
+  font-size: 12px;
   font-weight: 700;
 `;
 
@@ -1304,35 +1687,28 @@ const PreviewInfoRow = styled.div`
   }
 `;
 
-const ImportDetailList = styled.dl`
+const ImportDetailFields = styled.div`
   display: grid;
-  gap: 6px;
-  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   padding: 12px;
   border-radius: 8px;
   background: #f9fafb;
 `;
 
-const ImportDetailRow = styled.div`
-  display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-`;
-
-const ImportDetailKey = styled.dt`
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 500;
-`;
-
-const ImportDetailValue = styled.dd`
-  margin: 0;
-  color: #111827;
-  font-size: 12px;
+const CheckboxLabel = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #374151;
+  font-size: 13px;
   font-weight: 700;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
+`;
+
+const CheckboxInput = styled.input`
+  width: 16px;
+  height: 16px;
+  accent-color: var(--season-primary);
 `;
 
 const ExistingProductNotice = styled.p`

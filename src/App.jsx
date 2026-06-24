@@ -19,6 +19,9 @@ function App() {
   const { session, setSession } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
+  const [fontsReady, setFontsReady] = useState(
+    () => !document.fonts?.ready,
+  );
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -43,7 +46,30 @@ function App() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  if (showSplash || loading) {
+  useEffect(() => {
+    if (fontsReady) {
+      return undefined;
+    }
+
+    let isMounted = true;
+    const timeoutId = window.setTimeout(() => {
+      if (isMounted) setFontsReady(true);
+    }, 3000);
+
+    document.fonts.ready.finally(() => {
+      if (!isMounted) return;
+
+      window.clearTimeout(timeoutId);
+      setFontsReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [fontsReady]);
+
+  if (showSplash || loading || !fontsReady) {
     return (
       <MobileFrame>
         <SplashScreen />
