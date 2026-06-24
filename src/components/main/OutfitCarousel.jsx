@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import OutfitCard from './OutfitCard';
 import PaginationDots from '@/components/common/PaginationDots';
@@ -11,8 +11,11 @@ const MIN_SWIPE_DISTANCE = 40;
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 function OutfitCarousel({ items, seasonTheme }) {
-  const trackRef = useRef(null);
+  const viewportRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [dragOffsetPx, setDragOffsetPx] = useState(0);
+  const [slideSizePx, setSlideSizePx] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [flippedCardIds, setFlippedCardIds] = useState([]);
   const { isLiked, toggleLikedOutfit } = useLikedOutfits();
   const isDragging = useRef(false);
@@ -20,67 +23,48 @@ function OutfitCarousel({ items, seasonTheme }) {
   const isHorizontalDrag = useRef(false);
   const startX = useRef(0);
   const startY = useRef(0);
-  const scrollStart = useRef(0);
   const gestureStartIndex = useRef(0);
-  const snapTimer = useRef(null);
 
-  const getSlideSize = (track) => {
-    const slideWidth = track.querySelector('[data-slide]')?.clientWidth ?? 1;
+  const getSlideSize = () => {
+    const viewportWidth = viewportRef.current?.clientWidth ?? 1;
 
-    return slideWidth + CARD_GAP;
+    return viewportWidth + CARD_GAP;
   };
 
-  const snapToIndex = (track, index) => {
-    const slideSize = getSlideSize(track);
+  useEffect(() => {
+    const updateSlideSize = () => {
+      setSlideSizePx(getSlideSize());
+    };
+
+    updateSlideSize();
+    window.addEventListener('resize', updateSlideSize);
+
+    return () => {
+      window.removeEventListener('resize', updateSlideSize);
+    };
+  }, []);
+
+  const moveToIndex = (index) => {
     const safeIndex = clamp(index, 0, items.length - 1);
 
+    setIsAnimating(true);
+    setDragOffsetPx(0);
     setCurrentIndex(safeIndex);
-    track.scrollTo({
-      left: safeIndex * slideSize,
-      behavior: 'smooth',
-    });
-  };
-
-  const handleScroll = () => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const slideSize = getSlideSize(track);
-    const nextIndex = clamp(
-      Math.round(track.scrollLeft / slideSize),
-      0,
-      items.length - 1,
-    );
-    setCurrentIndex(nextIndex);
-
-    if (!isDragging.current) {
-      clearTimeout(snapTimer.current);
-      snapTimer.current = setTimeout(() => {
-        snapToIndex(track, nextIndex);
-      }, 150);
-    }
   };
 
   const startDrag = (clientX, clientY = 0) => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    clearTimeout(snapTimer.current);
     isDragging.current = true;
     hasDragged.current = false;
     isHorizontalDrag.current = false;
     startX.current = clientX;
     startY.current = clientY;
-    scrollStart.current = track.scrollLeft;
     gestureStartIndex.current = currentIndex;
-    track.style.scrollBehavior = 'auto';
+    setIsAnimating(false);
+    setDragOffsetPx(0);
   };
 
   const moveDrag = (clientX, clientY = 0) => {
     if (!isDragging.current) return;
-
-    const track = trackRef.current;
-    if (!track) return;
 
     const distX = clientX - startX.current;
     const distY = clientY - startY.current;
@@ -96,17 +80,14 @@ function OutfitCarousel({ items, seasonTheme }) {
     if (!isHorizontalDrag.current) return;
 
     hasDragged.current = true;
-    track.scrollLeft = scrollStart.current - distX;
+    setDragOffsetPx(distX);
   };
 
   const endDrag = (clientX) => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
-    const track = trackRef.current;
-    if (!track) return;
-
-    const slideSize = getSlideSize(track);
+    const slideSize = getSlideSize();
     const dist = typeof clientX === 'number' ? clientX - startX.current : 0;
     const threshold = Math.min(MIN_SWIPE_DISTANCE, slideSize * 0.15);
     let targetIndex = gestureStartIndex.current;
@@ -116,20 +97,14 @@ function OutfitCarousel({ items, seasonTheme }) {
     }
 
     targetIndex = clamp(targetIndex, 0, items.length - 1);
-
-    track.style.scrollBehavior = '';
-    snapToIndex(track, targetIndex);
+    moveToIndex(targetIndex);
   };
 
   const cancelDrag = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
-    const track = trackRef.current;
-    if (!track) return;
-
-    track.style.scrollBehavior = '';
-    snapToIndex(track, gestureStartIndex.current);
+    moveToIndex(gestureStartIndex.current);
   };
 
   const handleMouseDown = (e) => {
@@ -170,6 +145,14 @@ function OutfitCarousel({ items, seasonTheme }) {
     endDrag(touch?.clientX);
   };
 
+  const handleViewportRef = useCallback((node) => {
+    viewportRef.current = node;
+
+    if (!node) return;
+
+    setSlideSizePx(node.clientWidth + CARD_GAP);
+  }, []);
+
   const handleClick = (e) => {
     if (hasDragged.current) {
       e.preventDefault();
@@ -187,10 +170,12 @@ function OutfitCarousel({ items, seasonTheme }) {
 
   return (
     <Container>
-      <Viewport>
+      <Viewport ref={handleViewportRef}>
         <Track
-          ref={trackRef}
-          onScroll={handleScroll}
+          $index={currentIndex}
+          $slideSizePx={slideSizePx}
+          $dragOffsetPx={dragOffsetPx}
+          $animating={isAnimating}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -240,24 +225,27 @@ const Container = styled.section`
 `;
 
 const Viewport = styled.div`
-  overflow: visible;
+  overflow: hidden;
 `;
 
 const Track = styled.div`
   display: flex;
   gap: ${CARD_GAP}px;
-  overflow-x: hidden;
   padding: 12px 20px;
-  scrollbar-width: none;
   cursor: grab;
   touch-action: pan-y;
+  transform: translate3d(
+    ${({ $index, $slideSizePx, $dragOffsetPx }) =>
+      $dragOffsetPx - $index * $slideSizePx}px,
+    0,
+    0
+  );
+  transition: ${({ $animating }) =>
+    $animating ? 'transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'};
+  will-change: transform;
 
   &:active {
     cursor: grabbing;
-  }
-
-  &::-webkit-scrollbar {
-    display: none;
   }
 
   user-select: none;
