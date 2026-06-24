@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
 import closetArtwork from '@/assets/CLOSET.png';
+import { previewClothesImport, importClothes } from '@/api/clothes';
 
 const closetCategories = [
   {
@@ -115,6 +116,46 @@ const colorMap = {
   버건디: '#7F1D1D',
 };
 
+const importCategoryOptions = [
+  { value: 'OUTER', label: '아우터' },
+  { value: 'TOP', label: '상의' },
+  { value: 'BOTTOM', label: '하의' },
+  { value: 'ACC', label: '액세서리' },
+  { value: 'BAG', label: '가방' },
+  { value: 'SHOES', label: '신발' },
+];
+
+const categoryToApiEnum = {
+  outer: 'OUTER',
+  top: 'TOP',
+  bottom: 'BOTTOM',
+  accessory: 'ACC',
+  bag: 'BAG',
+  shoes: 'SHOES',
+};
+
+const categoryApiToDisplay = {
+  OUTER: '아우터',
+  TOP: '상의',
+  BOTTOM: '하의',
+  ACC: '액세서리',
+  BAG: '가방',
+  SHOES: '신발',
+};
+
+const importDetailLabels = {
+  sleeveLength: '소매 길이',
+  thickness: '두께',
+  fit: '핏',
+  material: '소재',
+  color: '색상',
+  length: '기장',
+  type: '종류',
+  windproof: '방풍',
+  waterproof: '방수',
+  warmthBonus: '보온 지수',
+};
+
 const fallbackColor = '#D8DEE9';
 const defaultClothingImage = encodeURI(
   '/ChatGPT Image 2026년 6월 23일 오후 03_34_52.png',
@@ -195,6 +236,16 @@ function ClosetPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
+  const [modalTab, setModalTab] = useState('import');
+  const [importStep, setImportStep] = useState('input');
+  const [importUrl, setImportUrl] = useState('');
+  const [importCategory, setImportCategory] = useState('OUTER');
+  const [importPreview, setImportPreview] = useState(null);
+  const [importConfirmName, setImportConfirmName] = useState('');
+  const [importConfirmCategory, setImportConfirmCategory] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importSubmitting, setImportSubmitting] = useState(false);
+  const [importError, setImportError] = useState('');
 
   const filteredItems = useMemo(() => {
     if (!selectedCategory) return [];
@@ -207,6 +258,16 @@ function ClosetPage() {
     setForm(initialForm);
     setError('');
     setIsModalOpen(false);
+    setModalTab('import');
+    setImportStep('input');
+    setImportUrl('');
+    setImportCategory('OUTER');
+    setImportPreview(null);
+    setImportConfirmName('');
+    setImportConfirmCategory('');
+    setImportLoading(false);
+    setImportSubmitting(false);
+    setImportError('');
   }, []);
 
   useEffect(() => {
@@ -228,6 +289,11 @@ function ClosetPage() {
   }
 
   const openModal = () => {
+    const routeApiCategory =
+      selectedCategory && selectedCategory.key !== allCategory.key
+        ? (categoryToApiEnum[selectedCategory.key] ?? 'OUTER')
+        : 'OUTER';
+
     setForm({
       ...initialForm,
       category:
@@ -235,6 +301,7 @@ function ClosetPage() {
           ? selectedCategory.label
           : initialForm.category,
     });
+    setImportCategory(routeApiCategory);
     setError('');
     setIsModalOpen(true);
   };
@@ -280,6 +347,81 @@ function ClosetPage() {
         ? currentLikedItemIds.filter((currentItemId) => currentItemId !== itemId)
         : [...currentLikedItemIds, itemId],
     );
+  };
+
+  const handleFetchPreview = async () => {
+    if (!importUrl.trim()) {
+      setImportError('URL을 입력해 주세요.');
+      return;
+    }
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const { data } = await previewClothesImport({
+        category: importCategory,
+        originalUrl: importUrl.trim(),
+      });
+      setImportPreview(data);
+      setImportConfirmName(data.common?.name ?? '');
+      setImportConfirmCategory(
+        data.detectedCategory || data.requestedCategory || importCategory,
+      );
+      setImportStep('preview');
+    } catch {
+      setImportError('미리보기를 불러오지 못했습니다. URL을 확인해 주세요.');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleImportBack = () => {
+    setImportStep('input');
+    setImportPreview(null);
+    setImportError('');
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importPreview) return;
+    setImportSubmitting(true);
+    setImportError('');
+    try {
+      await importClothes({
+        analysisToken: importPreview.analysisToken,
+        category: importConfirmCategory,
+        name: importConfirmName,
+      });
+
+      const displayCategory =
+        categoryApiToDisplay[importConfirmCategory] ?? importConfirmCategory;
+      const newItem = {
+        id: Date.now(),
+        name: importConfirmName || importPreview.common?.name || '(이름 없음)',
+        category: displayCategory,
+        seasons: ['사계절'],
+        colors: [fallbackColor],
+        color: fallbackColor,
+        colorNames: ['기타'],
+        colorName: '기타',
+        imageUrl: importPreview.common?.imagePreviewUrl ?? '',
+        length: '',
+        material: importPreview.details?.material ?? '',
+        weather: importPreview.common
+          ? `${importPreview.common.minTemp}°~${importPreview.common.maxTemp}°`
+          : '',
+      };
+      setItems((prev) => [newItem, ...prev]);
+      closeModal();
+
+      const nextKey = Object.keys(categoryToApiEnum).find(
+        (k) => categoryToApiEnum[k] === importConfirmCategory,
+      );
+      if (nextKey && category !== allCategory.key && nextKey !== category) {
+        navigate(`/closet/${nextKey}`);
+      }
+    } catch {
+      setImportError('등록에 실패했습니다. 다시 시도해 주세요.');
+      setImportSubmitting(false);
+    }
   };
 
   const handleSubmit = (event) => {
@@ -354,6 +496,24 @@ function ClosetPage() {
       onToggleColor={toggleColor}
       onToggleLikedItem={toggleLikedItem}
       onSubmit={handleSubmit}
+      modalTab={modalTab}
+      importStep={importStep}
+      importUrl={importUrl}
+      importCategory={importCategory}
+      importPreview={importPreview}
+      importConfirmName={importConfirmName}
+      importConfirmCategory={importConfirmCategory}
+      importLoading={importLoading}
+      importSubmitting={importSubmitting}
+      importError={importError}
+      onTabChange={setModalTab}
+      onImportUrlChange={setImportUrl}
+      onImportCategoryChange={setImportCategory}
+      onImportConfirmNameChange={setImportConfirmName}
+      onImportConfirmCategoryChange={setImportConfirmCategory}
+      onFetchPreview={handleFetchPreview}
+      onImportBack={handleImportBack}
+      onImportSubmit={handleImportSubmit}
     />
   );
 }
@@ -455,6 +615,24 @@ function ClosetCategoryView({
   onToggleColor,
   onToggleLikedItem,
   onSubmit,
+  modalTab,
+  importStep,
+  importUrl,
+  importCategory,
+  importPreview,
+  importConfirmName,
+  importConfirmCategory,
+  importLoading,
+  importSubmitting,
+  importError,
+  onTabChange,
+  onImportUrlChange,
+  onImportCategoryChange,
+  onImportConfirmNameChange,
+  onImportConfirmCategoryChange,
+  onFetchPreview,
+  onImportBack,
+  onImportSubmit,
 }) {
   const [isColorSelectOpen, setIsColorSelectOpen] = useState(false);
   const selectedColorText =
@@ -562,156 +740,305 @@ function ClosetCategoryView({
               </CloseButton>
             </ModalHeader>
 
-            <Form onSubmit={handleSubmit}>
-              <Field>
-                <Label htmlFor="item-name">옷 이름</Label>
-                <TextInput
-                  id="item-name"
-                  value={form.name}
-                  onChange={(event) => onUpdateForm('name', event.target.value)}
-                  placeholder="예: 아이보리 반팔 셔츠"
-                />
-              </Field>
+            <ModalTabBar>
+              <ModalTabButton
+                type="button"
+                $active={modalTab === 'import'}
+                onClick={() => onTabChange('import')}
+              >
+                URL 가져오기
+              </ModalTabButton>
+              <ModalTabButton
+                type="button"
+                $active={modalTab === 'manual'}
+                onClick={() => onTabChange('manual')}
+              >
+                직접 입력
+              </ModalTabButton>
+            </ModalTabBar>
 
-              <Field>
-                <Label as="span">옷 종류</Label>
-                <CustomSelect
-                  ariaLabel="옷 종류"
-                  value={form.category}
-                  options={categoryLabels.map((categoryLabel) => ({
-                    value: categoryLabel,
-                    label: categoryLabel,
-                  }))}
-                  onChange={(nextCategory) => onUpdateForm('category', nextCategory)}
-                />
-              </Field>
-
-              <Field>
-                <Label htmlFor="item-image-url">이미지 URL</Label>
-                <TextInput
-                  id="item-image-url"
-                  value={form.imageUrl}
-                  onChange={(event) => onUpdateForm('imageUrl', event.target.value)}
-                  placeholder="https://..."
-                />
-              </Field>
-
-              <Field>
-                <Label as="span">시즌</Label>
-                <OptionGrid>
-                  {seasonOptions.map((season) => (
-                    <OptionButton
-                      key={season}
-                      type="button"
-                      $active={form.seasons.includes(season)}
-                      onClick={() => onToggleSeason(season)}
-                    >
-                      {season}
-                    </OptionButton>
-                  ))}
-                </OptionGrid>
-              </Field>
-
-              <Field>
-                <Label as="span">색상</Label>
-                <ColorSelectBox>
-                  <ColorSelectButton
-                    type="button"
-                    aria-expanded={isColorSelectOpen}
-                    onClick={() =>
-                      setIsColorSelectOpen((currentValue) => !currentValue)
-                    }
-                  >
-                    <ColorSelectText>{selectedColorText}</ColorSelectText>
-                    <ColorSelectChevron
-                      aria-hidden="true"
-                      $open={isColorSelectOpen}
+            {modalTab === 'import' ? (
+              importStep === 'input' ? (
+                <ModalScrollContent>
+                  <Field>
+                    <Label as="span">카테고리</Label>
+                    <CustomSelect
+                      ariaLabel="가져올 옷 종류"
+                      value={importCategory}
+                      options={importCategoryOptions}
+                      onChange={onImportCategoryChange}
                     />
-                  </ColorSelectButton>
-                  {isColorSelectOpen && (
-                    <ColorOptionList>
-                      {colorOptions.map((colorOption) => (
-                        <ColorOptionItem
-                          key={colorOption}
-                          type="button"
-                          $active={form.colorNames.includes(colorOption)}
-                          onClick={() => onToggleColor(colorOption)}
-                        >
-                          <ColorCheck aria-hidden="true">
-                            {form.colorNames.includes(colorOption) ? '✓' : ''}
-                          </ColorCheck>
-                          {colorOption}
-                        </ColorOptionItem>
-                      ))}
-                    </ColorOptionList>
+                  </Field>
+                  <Field>
+                    <Label htmlFor="import-url">상품 URL</Label>
+                    <TextInput
+                      id="import-url"
+                      value={importUrl}
+                      onChange={(e) => onImportUrlChange(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </Field>
+                  {importError && <ErrorText role="alert">{importError}</ErrorText>}
+                  <SaveButton
+                    type="button"
+                    onClick={onFetchPreview}
+                    disabled={importLoading}
+                  >
+                    {importLoading ? '불러오는 중...' : '미리보기 불러오기'}
+                  </SaveButton>
+                </ModalScrollContent>
+              ) : (
+                <ModalScrollContent>
+                  <BackLink type="button" onClick={onImportBack}>
+                    ← 다시 입력
+                  </BackLink>
+
+                  {importPreview?.common?.imagePreviewUrl && (
+                    <ImportPreviewImage
+                      src={importPreview.common.imagePreviewUrl}
+                      alt="상품 미리보기"
+                    />
                   )}
-                </ColorSelectBox>
-                {form.colorNames.length > 0 && (
-                  <SelectedColorRow aria-label="선택한 색상">
-                    {form.colorNames.map((colorName) => (
-                      <SelectedColorTag key={colorName}>
-                        #{colorName}
-                      </SelectedColorTag>
-                    ))}
-                  </SelectedColorRow>
-                )}
-              </Field>
 
-              {form.colorNames.includes('기타') && (
+                  <Field>
+                    <Label htmlFor="import-confirm-name">이름</Label>
+                    <TextInput
+                      id="import-confirm-name"
+                      value={importConfirmName}
+                      onChange={(e) => onImportConfirmNameChange(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field>
+                    <Label as="span">
+                      카테고리
+                      {importPreview?.categoryMismatch && (
+                        <CategoryMismatchTag>감지 카테고리 불일치</CategoryMismatchTag>
+                      )}
+                    </Label>
+                    <CustomSelect
+                      ariaLabel="카테고리"
+                      value={importConfirmCategory}
+                      options={importCategoryOptions}
+                      onChange={onImportConfirmCategoryChange}
+                    />
+                  </Field>
+
+                  {importPreview?.common && (
+                    <PreviewInfoRow>
+                      <span>온도 범위</span>
+                      <span>
+                        {importPreview.common.minTemp}°C ~{' '}
+                        {importPreview.common.maxTemp}°C
+                      </span>
+                    </PreviewInfoRow>
+                  )}
+
+                  {importPreview?.details && (
+                    <ImportDetailList>
+                      {Object.entries(importPreview.details)
+                        .filter(
+                          ([, v]) => v !== null && v !== '' && v !== false && v !== 0,
+                        )
+                        .map(([key, value]) => (
+                          <ImportDetailRow key={key}>
+                            <ImportDetailKey>
+                              {importDetailLabels[key] ?? key}
+                            </ImportDetailKey>
+                            <ImportDetailValue>
+                              {typeof value === 'boolean'
+                                ? value
+                                  ? '있음'
+                                  : '없음'
+                                : String(value)}
+                            </ImportDetailValue>
+                          </ImportDetailRow>
+                        ))}
+                    </ImportDetailList>
+                  )}
+
+                  {importPreview?.existingProduct && (
+                    <ExistingProductNotice>
+                      이미 등록된 상품입니다.
+                    </ExistingProductNotice>
+                  )}
+
+                  {importPreview?.warnings?.length > 0 && (
+                    <ImportWarnings>
+                      {importPreview.warnings.map((w, i) => (
+                        <ImportWarningItem key={i}>{w}</ImportWarningItem>
+                      ))}
+                    </ImportWarnings>
+                  )}
+
+                  {importError && <ErrorText role="alert">{importError}</ErrorText>}
+
+                  <ActionRow>
+                    <CancelButton type="button" onClick={handleCloseModal}>
+                      취소
+                    </CancelButton>
+                    <SaveButton
+                      type="button"
+                      onClick={onImportSubmit}
+                      disabled={importSubmitting}
+                    >
+                      {importSubmitting ? '등록 중...' : '등록하기'}
+                    </SaveButton>
+                  </ActionRow>
+                </ModalScrollContent>
+              )
+            ) : (
+              <Form onSubmit={handleSubmit}>
                 <Field>
-                  <Label htmlFor="item-custom-color">색상 직접 입력</Label>
+                  <Label htmlFor="item-name">옷 이름</Label>
                   <TextInput
-                    id="item-custom-color"
-                    value={form.customColorName}
-                    onChange={(event) =>
-                      onUpdateForm('customColorName', event.target.value)
-                    }
-                    placeholder="예: 라벤더"
-                  />
-                </Field>
-              )}
-
-              <TwoColumn>
-                <Field>
-                  <Label as="span">기장</Label>
-                  <CustomSelect
-                    ariaLabel="기장"
-                    value={form.length}
-                    placement="up"
-                    options={lengthOptions.map((length) => ({
-                      value: length,
-                      label: length,
-                    }))}
-                    onChange={(nextLength) => onUpdateForm('length', nextLength)}
+                    id="item-name"
+                    value={form.name}
+                    onChange={(event) => onUpdateForm('name', event.target.value)}
+                    placeholder="예: 아이보리 반팔 셔츠"
                   />
                 </Field>
 
                 <Field>
-                  <Label as="span">소재</Label>
+                  <Label as="span">옷 종류</Label>
                   <CustomSelect
-                    ariaLabel="소재"
-                    value={form.material}
-                    placement="up"
-                    options={materialOptions.map((material) => ({
-                      value: material,
-                      label: material,
+                    ariaLabel="옷 종류"
+                    value={form.category}
+                    options={categoryLabels.map((categoryLabel) => ({
+                      value: categoryLabel,
+                      label: categoryLabel,
                     }))}
-                    onChange={(nextMaterial) =>
-                      onUpdateForm('material', nextMaterial)
-                    }
+                    onChange={(nextCategory) => onUpdateForm('category', nextCategory)}
                   />
                 </Field>
-              </TwoColumn>
 
-              {error && <ErrorText role="alert">{error}</ErrorText>}
+                <Field>
+                  <Label htmlFor="item-image-url">이미지 URL</Label>
+                  <TextInput
+                    id="item-image-url"
+                    value={form.imageUrl}
+                    onChange={(event) => onUpdateForm('imageUrl', event.target.value)}
+                    placeholder="https://..."
+                  />
+                </Field>
 
-              <ActionRow>
-                <CancelButton type="button" onClick={handleCloseModal}>
-                  취소
-                </CancelButton>
-                <SaveButton type="submit">저장</SaveButton>
-              </ActionRow>
-            </Form>
+                <Field>
+                  <Label as="span">시즌</Label>
+                  <OptionGrid>
+                    {seasonOptions.map((season) => (
+                      <OptionButton
+                        key={season}
+                        type="button"
+                        $active={form.seasons.includes(season)}
+                        onClick={() => onToggleSeason(season)}
+                      >
+                        {season}
+                      </OptionButton>
+                    ))}
+                  </OptionGrid>
+                </Field>
+
+                <Field>
+                  <Label as="span">색상</Label>
+                  <ColorSelectBox>
+                    <ColorSelectButton
+                      type="button"
+                      aria-expanded={isColorSelectOpen}
+                      onClick={() =>
+                        setIsColorSelectOpen((currentValue) => !currentValue)
+                      }
+                    >
+                      <ColorSelectText>{selectedColorText}</ColorSelectText>
+                      <ColorSelectChevron
+                        aria-hidden="true"
+                        $open={isColorSelectOpen}
+                      />
+                    </ColorSelectButton>
+                    {isColorSelectOpen && (
+                      <ColorOptionList>
+                        {colorOptions.map((colorOption) => (
+                          <ColorOptionItem
+                            key={colorOption}
+                            type="button"
+                            $active={form.colorNames.includes(colorOption)}
+                            onClick={() => onToggleColor(colorOption)}
+                          >
+                            <ColorCheck aria-hidden="true">
+                              {form.colorNames.includes(colorOption) ? '✓' : ''}
+                            </ColorCheck>
+                            {colorOption}
+                          </ColorOptionItem>
+                        ))}
+                      </ColorOptionList>
+                    )}
+                  </ColorSelectBox>
+                  {form.colorNames.length > 0 && (
+                    <SelectedColorRow aria-label="선택한 색상">
+                      {form.colorNames.map((colorName) => (
+                        <SelectedColorTag key={colorName}>
+                          #{colorName}
+                        </SelectedColorTag>
+                      ))}
+                    </SelectedColorRow>
+                  )}
+                </Field>
+
+                {form.colorNames.includes('기타') && (
+                  <Field>
+                    <Label htmlFor="item-custom-color">색상 직접 입력</Label>
+                    <TextInput
+                      id="item-custom-color"
+                      value={form.customColorName}
+                      onChange={(event) =>
+                        onUpdateForm('customColorName', event.target.value)
+                      }
+                      placeholder="예: 라벤더"
+                    />
+                  </Field>
+                )}
+
+                <TwoColumn>
+                  <Field>
+                    <Label as="span">기장</Label>
+                    <CustomSelect
+                      ariaLabel="기장"
+                      value={form.length}
+                      placement="up"
+                      options={lengthOptions.map((length) => ({
+                        value: length,
+                        label: length,
+                      }))}
+                      onChange={(nextLength) => onUpdateForm('length', nextLength)}
+                    />
+                  </Field>
+
+                  <Field>
+                    <Label as="span">소재</Label>
+                    <CustomSelect
+                      ariaLabel="소재"
+                      value={form.material}
+                      placement="up"
+                      options={materialOptions.map((material) => ({
+                        value: material,
+                        label: material,
+                      }))}
+                      onChange={(nextMaterial) =>
+                        onUpdateForm('material', nextMaterial)
+                      }
+                    />
+                  </Field>
+                </TwoColumn>
+
+                {error && <ErrorText role="alert">{error}</ErrorText>}
+
+                <ActionRow>
+                  <CancelButton type="button" onClick={handleCloseModal}>
+                    취소
+                  </CancelButton>
+                  <SaveButton type="submit">저장</SaveButton>
+                </ActionRow>
+              </Form>
+            )}
           </ModalPanel>
         </ModalOverlay>
       )}
@@ -956,7 +1283,7 @@ const ModalPanel = styled.section`
   width: min(350px, 100%);
   max-height: min(760px, calc(100dvh - 40px));
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   border-radius: 8px;
   background: #ffffff;
   overflow: hidden;
@@ -1201,6 +1528,138 @@ const SaveButton = styled.button`
   color: #ffffff;
   font-size: 15px;
   font-weight: 700;
+`;
+
+const ModalTabBar = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const ModalTabButton = styled.button`
+  height: 42px;
+  background: ${({ $active }) => ($active ? '#ffffff' : '#f9fafb')};
+  color: ${({ $active }) => ($active ? 'var(--season-primary)' : '#9ca3af')};
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 2px solid
+    ${({ $active }) => ($active ? 'var(--season-primary)' : 'transparent')};
+  transition: color 120ms ease, border-color 120ms ease;
+`;
+
+const ModalScrollContent = styled.div`
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 18px;
+  overflow-y: auto;
+`;
+
+const BackLink = styled.button`
+  justify-self: start;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+  background: transparent;
+
+  &:hover {
+    color: var(--season-primary);
+  }
+`;
+
+const ImportPreviewImage = styled.img`
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: #f9fafb;
+`;
+
+const CategoryMismatchTag = styled.span`
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+`;
+
+const PreviewInfoRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 13px;
+
+  span:last-child {
+    font-weight: 700;
+    color: var(--season-primary);
+  }
+`;
+
+const ImportDetailList = styled.dl`
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f9fafb;
+`;
+
+const ImportDetailRow = styled.div`
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+`;
+
+const ImportDetailKey = styled.dt`
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+`;
+
+const ImportDetailValue = styled.dd`
+  margin: 0;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 700;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+`;
+
+const ExistingProductNotice = styled.p`
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 13px;
+  font-weight: 700;
+`;
+
+const ImportWarnings = styled.ul`
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fffbeb;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+`;
+
+const ImportWarningItem = styled.li`
+  color: #92400e;
+  font-size: 12px;
+
+  &::before {
+    content: '⚠ ';
+  }
 `;
 
 export default ClosetPage;

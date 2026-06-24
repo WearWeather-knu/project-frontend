@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import OutfitCard from './OutfitCard';
 import PaginationDots from '@/components/common/PaginationDots';
@@ -19,6 +19,7 @@ function OutfitCarousel({ items, seasonTheme }) {
   const isMouseDown = useRef(false);
   const gestureStartX = useRef(0);
   const gestureStartY = useRef(0);
+  const scrollSettleTimer = useRef(null);
 
   const getSlideSize = () => {
     const slideWidth =
@@ -76,17 +77,26 @@ function OutfitCarousel({ items, seasonTheme }) {
     moveGesture(touch.clientX, touch.clientY);
   };
 
-  const handleScroll = () => {
+  const handleTouchEnd = () => {
+    if (hasDragged.current) {
+      hasDragged.current = false;
+      setIsSuppressingCardClick(false);
+    }
+  };
+
+  const syncIndex = () => {
     const track = trackRef.current;
     if (!track) return;
-
     const slideSize = getSlideSize();
-    const nextIndex = clamp(
-      Math.round(track.scrollLeft / slideSize),
-      0,
-      items.length - 1,
+    setCurrentIndex(
+      clamp(Math.round(track.scrollLeft / slideSize), 0, items.length - 1),
     );
-    setCurrentIndex(nextIndex);
+  };
+
+  const handleScroll = () => {
+    syncIndex();
+    clearTimeout(scrollSettleTimer.current);
+    scrollSettleTimer.current = setTimeout(syncIndex, 150);
   };
 
   const handleClick = (e) => {
@@ -100,6 +110,8 @@ function OutfitCarousel({ items, seasonTheme }) {
       }, 0);
     }
   };
+
+  useEffect(() => () => clearTimeout(scrollSettleTimer.current), []);
 
   const toggleCard = (id) => {
     setFlippedCardIds((currentIds) =>
@@ -120,6 +132,7 @@ function OutfitCarousel({ items, seasonTheme }) {
           onMouseLeave={handleMouseUp}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           onScroll={handleScroll}
           onClickCapture={handleClick}
           onDragStart={(e) => e.preventDefault()}
