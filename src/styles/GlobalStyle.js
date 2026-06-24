@@ -53,6 +53,11 @@ const GlobalStyle = createGlobalStyle`
     cursor: pointer;
   }
 
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   button:not(:disabled) {
     --press-scale: 0.985;
     --press-active-filter: brightness(0.94);

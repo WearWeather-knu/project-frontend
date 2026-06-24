@@ -5,6 +5,10 @@ import PaginationDots from '@/components/common/PaginationDots';
 import { useLikedOutfits } from '@/store/likedOutfitsStore';
 
 const CARD_GAP = 32;
+const CLICK_DRAG_THRESHOLD = 5;
+const MIN_SWIPE_DISTANCE = 40;
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 function OutfitCarousel({ items, seasonTheme }) {
   const trackRef = useRef(null);
@@ -15,12 +19,22 @@ function OutfitCarousel({ items, seasonTheme }) {
   const hasDragged = useRef(false);
   const startX = useRef(0);
   const scrollStart = useRef(0);
+  const gestureStartIndex = useRef(0);
   const snapTimer = useRef(null);
 
-  const snapToIndex = (track, index) => {
+  const getSlideSize = (track) => {
     const slideWidth = track.querySelector('[data-slide]')?.clientWidth ?? 1;
+
+    return slideWidth + CARD_GAP;
+  };
+
+  const snapToIndex = (track, index) => {
+    const slideSize = getSlideSize(track);
+    const safeIndex = clamp(index, 0, items.length - 1);
+
+    setCurrentIndex(safeIndex);
     track.scrollTo({
-      left: index * (slideWidth + CARD_GAP),
+      left: safeIndex * slideSize,
       behavior: 'smooth',
     });
   };
@@ -29,11 +43,14 @@ function OutfitCarousel({ items, seasonTheme }) {
     const track = trackRef.current;
     if (!track) return;
 
-    const slideWidth = track.querySelector('[data-slide]')?.clientWidth ?? 1;
-    const nextIndex = Math.round(track.scrollLeft / (slideWidth + CARD_GAP));
+    const slideSize = getSlideSize(track);
+    const nextIndex = clamp(
+      Math.round(track.scrollLeft / slideSize),
+      0,
+      items.length - 1,
+    );
     setCurrentIndex(nextIndex);
 
-    // 마우스 드래그 중이 아닐 때(쉬프트 드래그 등) 스크롤 멈추면 스냅
     if (!isDragging.current) {
       clearTimeout(snapTimer.current);
       snapTimer.current = setTimeout(() => {
@@ -42,32 +59,67 @@ function OutfitCarousel({ items, seasonTheme }) {
     }
   };
 
-  const handleMouseDown = (e) => {
+  const handlePointerDown = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+
+    const track = trackRef.current;
+    if (!track) return;
+
     clearTimeout(snapTimer.current);
     isDragging.current = true;
     hasDragged.current = false;
-    startX.current = e.pageX;
-    scrollStart.current = trackRef.current.scrollLeft;
-    trackRef.current.style.scrollBehavior = 'auto';
+    startX.current = e.clientX;
+    scrollStart.current = track.scrollLeft;
+    gestureStartIndex.current = currentIndex;
+    track.style.scrollBehavior = 'auto';
+    track.setPointerCapture?.(e.pointerId);
   };
 
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!isDragging.current) return;
-    const dist = e.pageX - startX.current;
-    if (Math.abs(dist) > 5) hasDragged.current = true;
-    trackRef.current.scrollLeft = scrollStart.current - dist;
+
+    const track = trackRef.current;
+    if (!track) return;
+
+    const dist = e.clientX - startX.current;
+    if (Math.abs(dist) > CLICK_DRAG_THRESHOLD) hasDragged.current = true;
+    track.scrollLeft = scrollStart.current - dist;
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e) => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
     const track = trackRef.current;
-    const slideWidth = track.querySelector('[data-slide]')?.clientWidth ?? 1;
-    const targetIndex = Math.round(track.scrollLeft / (slideWidth + CARD_GAP));
+    if (!track) return;
+
+    const slideSize = getSlideSize(track);
+    const dist =
+      typeof e.clientX === 'number' ? e.clientX - startX.current : 0;
+    const threshold = Math.min(MIN_SWIPE_DISTANCE, slideSize * 0.15);
+    let targetIndex = gestureStartIndex.current;
+
+    if (Math.abs(dist) >= threshold) {
+      targetIndex += dist < 0 ? 1 : -1;
+    }
+
+    targetIndex = clamp(targetIndex, 0, items.length - 1);
 
     track.style.scrollBehavior = '';
+    track.releasePointerCapture?.(e.pointerId);
     snapToIndex(track, targetIndex);
+  };
+
+  const handlePointerCancel = (e) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+
+    const track = trackRef.current;
+    if (!track) return;
+
+    track.style.scrollBehavior = '';
+    track.releasePointerCapture?.(e.pointerId);
+    snapToIndex(track, gestureStartIndex.current);
   };
 
   const handleClick = (e) => {
@@ -91,10 +143,10 @@ function OutfitCarousel({ items, seasonTheme }) {
         <Track
           ref={trackRef}
           onScroll={handleScroll}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
           onClickCapture={handleClick}
           onDragStart={(e) => e.preventDefault()}
         >
@@ -146,6 +198,7 @@ const Track = styled.div`
   padding: 12px 20px;
   scrollbar-width: none;
   cursor: grab;
+  touch-action: pan-y;
 
   &:active {
     cursor: grabbing;

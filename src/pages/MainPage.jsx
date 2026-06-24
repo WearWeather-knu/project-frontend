@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import outfitImage from '@/assets/hero.png';
 import OutfitCarousel from '@/components/main/OutfitCarousel';
@@ -76,31 +76,149 @@ const outfits = [
   },
 ];
 
+const MAIN_WEATHER_CACHE_KEY = 'wear-weather-main-weather';
+const MAIN_LOCATION_NAME = '대구광역시, 북구';
+const WEATHER_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+
+const getWeatherRefreshSlot = (date = new Date()) => {
+  const slotStart = new Date(date);
+  const minutes = slotStart.getMinutes();
+  slotStart.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
+
+  return {
+    slotStartedAt: slotStart.getTime(),
+    nextRefreshAt: slotStart.getTime() + WEATHER_REFRESH_INTERVAL_MS,
+  };
+};
+
+const isValidWeatherData = (data) =>
+  typeof data?.location === 'string' && Number.isFinite(Number(data?.temperature));
+
+const readMainWeatherCache = () => {
+  try {
+    const cachedValue = window.localStorage.getItem(MAIN_WEATHER_CACHE_KEY);
+
+    if (!cachedValue) return null;
+
+    const cachedPayload = JSON.parse(cachedValue);
+
+    if (
+      !Number.isFinite(cachedPayload?.slotStartedAt) ||
+      !Number.isFinite(cachedPayload?.nextRefreshAt) ||
+      !isValidWeatherData(cachedPayload?.data)
+    ) {
+      window.localStorage.removeItem(MAIN_WEATHER_CACHE_KEY);
+      return null;
+    }
+
+    return cachedPayload;
+  } catch {
+    window.localStorage.removeItem(MAIN_WEATHER_CACHE_KEY);
+    return null;
+  }
+};
+
+const writeMainWeatherCache = (data) => {
+  try {
+    window.localStorage.setItem(
+      MAIN_WEATHER_CACHE_KEY,
+      JSON.stringify({
+        ...getWeatherRefreshSlot(),
+        data,
+      }),
+    );
+  } catch {
+    // localStorage can fail in private browsing or restricted environments.
+  }
+};
+
+const getCurrentPosition = () =>
+  new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject);
+  });
+
 function MainPage() {
   const [temperature, setTemperature] = useState(0);
   const [location, setLocation] = useState('');
+  const refreshTimerRef = useRef(null);
+  const loadWeatherRef = useRef(null);
+  const isMountedRef = useRef(false);
   const { seasonTheme } = useSeasonTheme();
 
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        fetchWeather({
-          lat: latitude,
-          lon: longitude,
-          location_name: '대구광역시, 북구',
-        })
-          .then((res) => {
-            console.log(res);
-            const data = res.data.data;
-            setLocation(data.location_name);
-            setTemperature(data.current_temp);
-          })
-          .catch((err) => console.error(err));
-      },
-      (error) => console.error(error),
-    );
+  const applyWeatherData = useCallback((data) => {
+    if (!isMountedRef.current) return;
+
+    setLocation(data.location);
+    setTemperature(Number(data.temperature));
   }, []);
+
+  const scheduleNextWeatherLoad = useCallback((nextRefreshAt) => {
+    if (!isMountedRef.current) return;
+
+    window.clearTimeout(refreshTimerRef.current);
+
+    const delay = Math.max(0, nextRefreshAt - Date.now());
+    refreshTimerRef.current = window.setTimeout(() => {
+      loadWeatherRef.current?.();
+    }, delay);
+  }, []);
+
+  const loadWeather = useCallback(async () => {
+    const cachedPayload = readMainWeatherCache();
+
+    if (cachedPayload && Date.now() < cachedPayload.nextRefreshAt) {
+      applyWeatherData(cachedPayload.data);
+      scheduleNextWeatherLoad(cachedPayload.nextRefreshAt);
+      return;
+    }
+
+    try {
+      const position = await getCurrentPosition();
+      const { latitude, longitude } = position.coords;
+      const res = await fetchWeather({
+        lat: latitude,
+        lon: longitude,
+        location_name: MAIN_LOCATION_NAME,
+      });
+      const responseData = res.data.data;
+      const weatherData = {
+        location: responseData.location_name,
+        temperature: Number(responseData.current_temp),
+      };
+
+      if (!isValidWeatherData(weatherData)) {
+        throw new Error('Invalid weather response data');
+      }
+
+      const nextRefreshAt = getWeatherRefreshSlot().nextRefreshAt;
+
+      applyWeatherData(weatherData);
+      writeMainWeatherCache(weatherData);
+      scheduleNextWeatherLoad(nextRefreshAt);
+    } catch (error) {
+      console.error(error);
+
+      if (cachedPayload) {
+        applyWeatherData(cachedPayload.data);
+      }
+
+      scheduleNextWeatherLoad(getWeatherRefreshSlot().nextRefreshAt);
+    }
+  }, [applyWeatherData, scheduleNextWeatherLoad]);
+
+  useEffect(() => {
+    loadWeatherRef.current = loadWeather;
+  }, [loadWeather]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    loadWeather();
+
+    return () => {
+      isMountedRef.current = false;
+      window.clearTimeout(refreshTimerRef.current);
+    };
+  }, [loadWeather]);
 
   useEffect(() => {
     fetchRecommend({ weather: String(temperature) }).then((res) => {
