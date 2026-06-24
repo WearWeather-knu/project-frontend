@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
+import closetArtwork from '@/assets/CLOSET.png';
 
 const closetCategories = [
   {
@@ -361,25 +362,32 @@ function ClosetHomeView({ seasonTheme, onSelect }) {
   return (
     <HomePage $background={seasonTheme.background} $primary={seasonTheme.primary}>
       <WardrobeCard>
-        <WardrobeTitle>C L O S E T</WardrobeTitle>
-        <WardrobeGrid>
-          {closetCategories.map((category) => (
-            <WardrobeCell
-              key={category.key}
+        <WardrobeCanvas>
+          <WardrobeImage src={closetArtwork} alt="" aria-hidden="true" />
+          {closetHotspots.map((hotspot) => (
+            <WardrobeHotspot
+              key={hotspot.key}
               type="button"
-              aria-label={`${category.label} 보기`}
-              $layout={category.layout}
-              onClick={() => onSelect(category.key)}
-            >
-              {category.hasHanger && <WardrobeHanger aria-hidden="true" />}
-              <WardrobeLabel>{category.label}</WardrobeLabel>
-            </WardrobeCell>
+              aria-label={`${hotspot.label} 보기`}
+              $area={hotspot.area}
+              onClick={() => onSelect(hotspot.key)}
+            />
           ))}
-        </WardrobeGrid>
+        </WardrobeCanvas>
       </WardrobeCard>
     </HomePage>
   );
 }
+
+const closetHotspots = [
+  { key: 'outer', label: '아우터', area: 'outer' },
+  { key: 'top', label: '상의', area: 'top' },
+  { key: 'bottom', label: '하의', area: 'bottom' },
+  { key: 'dress', label: '원피스', area: 'dress' },
+  { key: 'accessory', label: '액세서리', area: 'accessory' },
+  { key: 'bag', label: '가방', area: 'bag' },
+  { key: 'shoes', label: '신발', area: 'shoes' },
+];
 
 function CustomSelect({
   ariaLabel,
@@ -723,106 +731,67 @@ function HeartIcon() {
 const HomePage = styled.section`
   min-height: calc(100% + 44px);
   display: grid;
-  align-items: center;
+  align-content: start;
+  justify-items: stretch;
+  gap: 18px;
   margin: -20px -20px -24px;
-  padding: 26px 20px 34px;
+  padding: 22px 20px 30px;
   background: ${({ $background }) => $background};
   --season-primary: ${({ $primary }) => $primary};
 `;
 
 const WardrobeCard = styled.section`
-  min-height: 100%;
+  min-height: calc(100dvh - 182px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 20px;
-  padding: 28px 32px 34px;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--season-primary) 14%, transparent);
+  gap: 19px;
+  padding: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
 `;
 
-const WardrobeTitle = styled.h2`
-  margin: 0;
-  color: #43474F;
-  font-family: 'KyoboHandwriting2025lyb', sans-serif;
-  font-size: 18px;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-align: center;
-`;
-
-const WardrobeGrid = styled.div`
+const WardrobeCanvas = styled.div`
   position: relative;
-  min-height: 0;
+  width: min(354px, 100%);
+  aspect-ratio: 1062 / 2049;
+  justify-self: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: 2px 2px 10px color-mix(in srgb, var(--season-primary) 20%, transparent);
+`;
+
+const WardrobeImage = styled.img`
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #ffffff;
+  display: block;
+  object-fit: contain;
 `;
 
-const WardrobeCell = styled.button`
+const wardrobeHotspotStyles = {
+  outer: 'left: 9%; top: 8%; width: 43.5%; height: 22.5%;',
+  top: 'left: 9%; top: 31.5%; width: 43.5%; height: 21%;',
+  bottom: 'left: 9%; top: 53.5%; width: 43.5%; height: 38%;',
+  dress: 'left: 53.2%; top: 24%; width: 37.4%; height: 48.4%;',
+  accessory: 'left: 53.2%; top: 8%; width: 37.4%; height: 12.5%;',
+  bag: 'left: 53.2%; top: 20.6%; width: 37.4%; height: 12.5%;',
+  shoes: 'left: 53.2%; top: 80%; width: 37.4%; height: 11%;',
+};
+
+const WardrobeHotspot = styled.button`
   position: absolute;
-  left: ${({ $layout }) => `${$layout.left}%`};
-  top: ${({ $layout }) => `${$layout.top}%`};
-  width: ${({ $layout }) => `${$layout.width}%`};
-  height: ${({ $layout }) => `${$layout.height}%`};
-  display: grid;
-  place-items: center;
-  padding: 12px;
-  border: 3px solid #ffffff;
-  background: #eeeeee;
-  color: #464c55;
-  overflow: hidden;
+  ${({ $area }) => wardrobeHotspotStyles[$area] ?? ''}
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1;
 
   &:focus-visible {
     outline: 3px solid var(--season-primary);
-    outline-offset: -6px;
-    z-index: 1;
-  }
-`;
-
-const WardrobeLabel = styled.span`
-  position: absolute;
-  right: 10px;
-  bottom: 9px;
-  padding: 4px 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #4b5563;
-  font-size: 11px;
-  font-weight: 700;
-`;
-
-const WardrobeHanger = styled.span`
-  position: relative;
-  width: min(96px, 58%);
-  height: min(62px, 44%);
-  transform: translateY(-12%);
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 7%;
-    height: 55%;
-    background: #464c55;
-    transform: translateX(-50%);
+    outline-offset: 2px;
   }
 
-  &::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: 0;
-    width: 92%;
-    height: 61%;
-    border: 7px solid #464c55;
-    border-bottom: 0;
-    border-radius: 70px 70px 0 0;
-    transform: translateX(-50%);
-  }
 `;
 
 const Page = styled.section`
@@ -830,9 +799,9 @@ const Page = styled.section`
   position: relative;
   display: grid;
   align-content: start;
-  gap: 18px;
+  gap: 20px;
   margin: -20px -20px -24px;
-  padding: 28px 20px 40px;
+  padding: 28px 20px 32px;
   background: ${({ $background }) => $background};
   --season-primary: ${({ $primary }) => $primary};
 `;
@@ -845,7 +814,7 @@ const CategoryHeader = styled.div`
 `;
 
 const CategoryTitle = styled.h2`
-  margin: 0 0 4px 8px;
+  margin: 0 0 4px 22px;
   color: #43474F;
   font-family: 'KyoboHandwriting2025lyb', sans-serif;
   font-size: 18px;
