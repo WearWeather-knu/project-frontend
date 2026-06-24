@@ -12,6 +12,7 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 function OutfitCarousel({ items, seasonTheme }) {
   const viewportRef = useRef(null);
+  const trackRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dragOffsetPx, setDragOffsetPx] = useState(0);
   const [slideSizePx, setSlideSizePx] = useState(0);
@@ -26,9 +27,12 @@ function OutfitCarousel({ items, seasonTheme }) {
   const gestureStartIndex = useRef(0);
 
   const getSlideSize = () => {
-    const viewportWidth = viewportRef.current?.clientWidth ?? 1;
+    const slideWidth =
+      trackRef.current
+        ?.querySelector('[data-slide]')
+        ?.getBoundingClientRect().width ?? 1;
 
-    return viewportWidth + CARD_GAP;
+    return slideWidth + CARD_GAP;
   };
 
   useEffect(() => {
@@ -44,15 +48,15 @@ function OutfitCarousel({ items, seasonTheme }) {
     };
   }, []);
 
-  const moveToIndex = (index) => {
+  const moveToIndex = useCallback((index) => {
     const safeIndex = clamp(index, 0, items.length - 1);
 
     setIsAnimating(true);
     setDragOffsetPx(0);
     setCurrentIndex(safeIndex);
-  };
+  }, [items.length]);
 
-  const startDrag = (clientX, clientY = 0) => {
+  const startDrag = useCallback((clientX, clientY = 0) => {
     isDragging.current = true;
     hasDragged.current = false;
     isHorizontalDrag.current = false;
@@ -61,9 +65,9 @@ function OutfitCarousel({ items, seasonTheme }) {
     gestureStartIndex.current = currentIndex;
     setIsAnimating(false);
     setDragOffsetPx(0);
-  };
+  }, [currentIndex]);
 
-  const moveDrag = (clientX, clientY = 0) => {
+  const moveDrag = useCallback((clientX, clientY = 0) => {
     if (!isDragging.current) return;
 
     const distX = clientX - startX.current;
@@ -81,9 +85,9 @@ function OutfitCarousel({ items, seasonTheme }) {
 
     hasDragged.current = true;
     setDragOffsetPx(distX);
-  };
+  }, []);
 
-  const endDrag = (clientX) => {
+  const endDrag = useCallback((clientX) => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
@@ -98,14 +102,59 @@ function OutfitCarousel({ items, seasonTheme }) {
 
     targetIndex = clamp(targetIndex, 0, items.length - 1);
     moveToIndex(targetIndex);
-  };
+  }, [items.length, moveToIndex]);
 
-  const cancelDrag = () => {
+  const cancelDrag = useCallback(() => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
     moveToIndex(gestureStartIndex.current);
-  };
+  }, [moveToIndex]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+
+    const handleNativeTouchStart = (event) => {
+      if (event.touches.length !== 1) return;
+
+      const touch = event.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+    };
+
+    const handleNativeTouchMove = (event) => {
+      if (event.touches.length !== 1) return;
+
+      const touch = event.touches[0];
+      moveDrag(touch.clientX, touch.clientY);
+
+      if (isHorizontalDrag.current) {
+        event.preventDefault();
+      }
+    };
+
+    const handleNativeTouchEnd = (event) => {
+      const touch = event.changedTouches[0];
+
+      endDrag(touch?.clientX);
+    };
+
+    viewport.addEventListener('touchstart', handleNativeTouchStart, {
+      passive: true,
+    });
+    viewport.addEventListener('touchmove', handleNativeTouchMove, {
+      passive: false,
+    });
+    viewport.addEventListener('touchend', handleNativeTouchEnd);
+    viewport.addEventListener('touchcancel', cancelDrag);
+
+    return () => {
+      viewport.removeEventListener('touchstart', handleNativeTouchStart);
+      viewport.removeEventListener('touchmove', handleNativeTouchMove);
+      viewport.removeEventListener('touchend', handleNativeTouchEnd);
+      viewport.removeEventListener('touchcancel', cancelDrag);
+    };
+  }, [startDrag, moveDrag, endDrag, cancelDrag]);
 
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
@@ -119,30 +168,6 @@ function OutfitCarousel({ items, seasonTheme }) {
 
   const handleMouseUp = (e) => {
     endDrag(e.clientX);
-  };
-
-  const handleTouchStart = (e) => {
-    if (e.touches.length !== 1) return;
-
-    const touch = e.touches[0];
-    startDrag(touch.clientX, touch.clientY);
-  };
-
-  const handleTouchMove = (e) => {
-    if (e.touches.length !== 1) return;
-
-    const touch = e.touches[0];
-    moveDrag(touch.clientX, touch.clientY);
-
-    if (isHorizontalDrag.current) {
-      e.preventDefault();
-    }
-  };
-
-  const handleTouchEnd = (e) => {
-    const touch = e.changedTouches[0];
-
-    endDrag(touch?.clientX);
   };
 
   const handleViewportRef = useCallback((node) => {
@@ -172,6 +197,7 @@ function OutfitCarousel({ items, seasonTheme }) {
     <Container>
       <Viewport ref={handleViewportRef}>
         <Track
+          ref={trackRef}
           $index={currentIndex}
           $slideSizePx={slideSizePx}
           $dragOffsetPx={dragOffsetPx}
@@ -180,10 +206,6 @@ function OutfitCarousel({ items, seasonTheme }) {
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={cancelDrag}
           onClickCapture={handleClick}
           onDragStart={(e) => e.preventDefault()}
         >
