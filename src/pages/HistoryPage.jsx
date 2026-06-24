@@ -31,7 +31,7 @@ function HistoryPage() {
               imageSrc={outfit.imageSrc}
               title={outfit.title}
               details={outfit.details}
-              color={outfit.color ?? cardColor}
+              color={cardColor}
               isFlipped={flippedCardIds.includes(outfit.id)}
               isFavorite
               favoriteSize={24}
