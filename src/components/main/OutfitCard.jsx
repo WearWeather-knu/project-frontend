@@ -9,6 +9,15 @@ const detailRows = [
   ['포인트', 'point'],
 ];
 
+const categoryLabels = {
+  OUTER: '아우터',
+  TOP: '상의',
+  BOTTOM: '하의',
+  SHOES: '신발',
+  ACC: '액세서리',
+  BAG: '가방',
+};
+
 function OutfitCard({
   imageSrc,
   title,
@@ -24,6 +33,20 @@ function OutfitCard({
   onToggle,
   onFavoriteToggle,
 }) {
+  const hasOotdDetails =
+    Array.isArray(details?.usedClothesIds) ||
+    Array.isArray(details?.missingCategories);
+  const usedClothesText =
+    details?.usedClothesIds?.length > 0
+      ? details.usedClothesIds.join(', ')
+      : '사용된 옷 정보 없음';
+  const missingCategoryText =
+    details?.missingCategories?.length > 0
+      ? details.missingCategories
+          .map((category) => categoryLabels[category] ?? category)
+          .join(', ')
+      : '부족한 카테고리 없음';
+
   const handleToggle = () => {
     if (disableToggle) return;
 
@@ -89,16 +112,29 @@ function OutfitCard({
             {!compact && (
               <BackTitle $color={color}>No.{recommendationNumber}</BackTitle>
             )}
-            <DetailList>
-              {detailRows.map(([label, key]) => (
-                <DetailRow key={key} $compact={compact}>
-                  <DetailLabel $compact={compact}>{label}</DetailLabel>
-                  <DetailValue $compact={compact}>
-                    {details?.[key] ?? '-'}
-                  </DetailValue>
-                </DetailRow>
-              ))}
-            </DetailList>
+            {hasOotdDetails ? (
+              <OotdDetailList>
+                <OotdDetailBlock>
+                  <OotdDetailLabel>사용된 옷 ID</OotdDetailLabel>
+                  <OotdDetailValue>{usedClothesText}</OotdDetailValue>
+                </OotdDetailBlock>
+                <OotdDetailBlock>
+                  <OotdDetailLabel>부족한 카테고리</OotdDetailLabel>
+                  <OotdDetailValue>{missingCategoryText}</OotdDetailValue>
+                </OotdDetailBlock>
+              </OotdDetailList>
+            ) : (
+              <DetailList>
+                {detailRows.map(([label, key]) => (
+                  <DetailRow key={key} $compact={compact}>
+                    <DetailLabel $compact={compact}>{label}</DetailLabel>
+                    <DetailValue $compact={compact}>
+                      {details?.[key] ?? '-'}
+                    </DetailValue>
+                  </DetailRow>
+                ))}
+              </DetailList>
+            )}
             <ReasonBox $color={color} $compact={compact}>
               {!compact && <ReasonLabel>추천 이유</ReasonLabel>}
               <Reason $compact={compact}>{details?.reason ?? '-'}</Reason>
@@ -193,19 +229,19 @@ const Image = styled.img`
 const BackContent = styled.div`
   width: 100%;
   height: 100%;
-  display: grid;
-  align-content: start;
-  gap: ${({ $compact }) => ($compact ? '10px' : '20px')};
+  display: flex;
+  flex-direction: column;
+  gap: ${({ $compact }) => ($compact ? '8px' : '16px')};
   padding: ${({ $compact }) =>
-    $compact ? '32px 20px 16px' : '74px 44px 42px'};
+    $compact ? '32px 20px 16px' : '56px 26px 20px'};
+  overflow: hidden;
   container-type: inline-size;
 `;
 
 const BackTitle = styled.h3`
   margin: 0;
   color: ${({ $color }) => $color};
-  font-size: ${({ $compact }) =>
-    $compact ? '20px' : '28px'};
+  font-size: ${({ $compact }) => ($compact ? '20px' : '22px')};
   line-height: 1.1;
   font-weight: 800;
 `;
@@ -219,32 +255,57 @@ const DetailList = styled.dl`
 const DetailRow = styled.div`
   display: grid;
   grid-template-columns: ${({ $compact }) =>
-    $compact ? '38px minmax(0, 1fr)' : '58px minmax(0, 1fr)'};
-  gap: ${({ $compact }) => ($compact ? '8px' : '38px')};
+    $compact ? '38px minmax(0, 1fr)' : '44px minmax(0, 1fr)'};
+  gap: ${({ $compact }) => ($compact ? '8px' : '12px')};
   align-items: start;
 `;
 
 const DetailLabel = styled.dt`
   color: #111827;
-  font-size: ${({ $compact }) => ($compact ? '10px' : '13px')};
-  font-weight: 500;
+  font-size: ${({ $compact }) => ($compact ? '10px' : '12px')};
+  font-weight: 600;
 `;
 
 const DetailValue = styled.dd`
   margin: 0;
   color: #111827;
-  font-size: ${({ $compact }) => ($compact ? '10px' : '13px')};
+  font-size: ${({ $compact }) => ($compact ? '10px' : '12px')};
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+`;
+
+const OotdDetailList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const OotdDetailBlock = styled.div`
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+`;
+
+const OotdDetailLabel = styled.span`
+  color: #4b5563;
+  font-size: 11px;
+  font-weight: 700;
+`;
+
+const OotdDetailValue = styled.p`
+  margin: 0;
+  color: #111827;
+  font-size: 12px;
   line-height: 1.35;
   word-break: keep-all;
   overflow-wrap: anywhere;
 `;
 
 const ReasonBox = styled.div`
-  align-self: end;
+  margin-top: auto;
   display: grid;
-  gap: 18px;
-  margin-top: ${({ $compact }) => ($compact ? '2px' : '22px')};
-  padding: ${({ $compact }) => ($compact ? '10px 8px' : '18px 18px 24px')};
+  gap: 8px;
+  padding: ${({ $compact }) => ($compact ? '8px' : '14px 16px')};
   border-radius: 8px;
   background: ${({ $color }) => `${$color}24`};
   text-align: center;
@@ -259,10 +320,14 @@ const ReasonLabel = styled.span`
 const Reason = styled.p`
   margin: 0;
   color: #111827;
-  font-size: ${({ $compact }) => ($compact ? '8px' : '12px')};
+  font-size: ${({ $compact }) => ($compact ? '8px' : '11px')};
   line-height: 1.45;
   word-break: keep-all;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 `;
 
 export default memo(OutfitCard);

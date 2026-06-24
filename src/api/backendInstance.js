@@ -3,7 +3,7 @@ import { supabase } from './auth/supabaseClient';
 
 const backendInstance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL?.trim(),
-  timeout: 10000,
+  timeout: 100000,
 });
 
 backendInstance.interceptors.request.use(async (config) => {

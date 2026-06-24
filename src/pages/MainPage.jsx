@@ -7,6 +7,11 @@ import WeatherInfoCard from '@/components/main/WeatherInfoCard';
 import { fetchWeather } from '@/api/weather.js';
 import { fetchRecommend } from '../api/recommend';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
+import { useClothesStore } from '@/store/clothesStore';
+import {
+  readOutfitRecommendCache,
+  writeOutfitRecommendCache,
+} from '@/utils/outfitRecommendCache';
 import {
   getWeatherId,
   getWeatherRefreshSlot,
@@ -87,23 +92,66 @@ const outfits = [
 const MAIN_LOCATION_NAME = '대구광역시, 북구';
 const DEFAULT_RECOMMEND_STYLE = '여름 20대 남자 패션';
 
+const categoryToDetailKey = {
+  OUTER: 'outer',
+  TOP: 'top',
+  BOTTOM: 'bottom',
+  SHOES: 'shoes',
+};
 
-const normalizeRecommendation = (recommendation) => {
+const categoryLabels = {
+  OUTER: '아우터',
+  TOP: '상의',
+  BOTTOM: '하의',
+  SHOES: '신발',
+  ACC: '액세서리',
+  BAG: '가방',
+};
+
+const normalizeRecommendation = (recommendation, index = 0, clothesById = {}) => {
   if (!recommendation) return null;
+
+  const usedClothesIds = Array.isArray(recommendation.usedClothesIds)
+    ? recommendation.usedClothesIds
+    : [];
+  const missingCategories = Array.isArray(recommendation.missingCategories)
+    ? recommendation.missingCategories
+    : [];
+  const imageSrc = recommendation.imageUrl || outfitImage;
+
+  const namedDetails = { outer: '-', top: '-', bottom: '-', shoes: '-' };
+  const pointItems = [];
+
+  for (const id of usedClothesIds) {
+    const cloth = clothesById[id];
+    if (!cloth) continue;
+    const detailKey = categoryToDetailKey[cloth.category];
+    if (detailKey) {
+      const current = namedDetails[detailKey];
+      namedDetails[detailKey] = current === '-' ? cloth.name : `${current} / ${cloth.name}`;
+    } else {
+      pointItems.push(cloth.name);
+    }
+  }
+
+  const point =
+    pointItems.length > 0
+      ? pointItems.join(', ')
+      : missingCategories.length > 0
+        ? `부족: ${missingCategories.map((c) => categoryLabels[c] ?? c).join(', ')}`
+        : '-';
 
   return {
     id: recommendation.recommendationId ?? Date.now(),
-    title: '오늘의 추천 코디',
-    imageSrc: recommendation.imageUrl || outfitImage,
+    title: index === 0 ? '오늘의 OOTD 추천' : `추천 OOTD #${index + 1}`,
+    imageSrc,
+    imageUrl: imageSrc,
+    description: recommendation.description ?? '',
+    usedClothesIds,
+    missingCategories,
     details: {
-      top: '-',
-      bottom: '-',
-      outer: '-',
-      shoes: '-',
-      point:
-        recommendation.missingCategories?.length > 0
-          ? `부족한 카테고리: ${recommendation.missingCategories.join(', ')}`
-          : `사용한 옷 ID: ${(recommendation.usedClothesIds ?? []).join(', ') || '-'}`,
+      ...namedDetails,
+      point,
       reason: recommendation.description ?? '-',
     },
   };
@@ -124,6 +172,10 @@ function MainPage() {
   const loadWeatherRef = useRef(null);
   const isMountedRef = useRef(false);
   const { seasonTheme } = useSeasonTheme();
+
+  useEffect(() => {
+    useClothesStore.getState().loadClothesLookup();
+  }, []);
 
   const applyWeatherData = useCallback((data) => {
     if (!isMountedRef.current) return;
@@ -208,26 +260,45 @@ function MainPage() {
   const loadRecommendations = useCallback(async (nextWeatherId, options = {}) => {
     if (!isValidWeatherId(nextWeatherId)) return;
 
+    const numericWeatherId = Number(nextWeatherId);
+
+    await useClothesStore.getState().loadClothesLookup();
+
+    if (!options.force) {
+      const cached = readOutfitRecommendCache(numericWeatherId);
+      if (cached) {
+        if (options.shouldIgnore?.()) return;
+        const clothesById = useClothesStore.getState().clothesById;
+        const nextOutfits = cached.recommendations
+          .map((rec, idx) => normalizeRecommendation(rec, idx, clothesById))
+          .filter(Boolean);
+        if (nextOutfits.length > 0) setRecommendedOutfits(nextOutfits);
+        return;
+      }
+    }
+
     setIsRecommendationLoading(true);
 
     try {
       const res = await fetchRecommend({
-        weatherId: Number(nextWeatherId),
+        weatherId: numericWeatherId,
         style: DEFAULT_RECOMMEND_STYLE,
       });
       const responseData = res.data?.data ?? res.data;
       const recommendationData = Array.isArray(responseData)
         ? responseData
         : [responseData];
+
+      writeOutfitRecommendCache(numericWeatherId, recommendationData);
+
+      const clothesById = useClothesStore.getState().clothesById;
       const nextOutfits = recommendationData
-        .map(normalizeRecommendation)
+        .map((rec, idx) => normalizeRecommendation(rec, idx, clothesById))
         .filter(Boolean);
 
       if (options.shouldIgnore?.()) return;
 
-      if (nextOutfits.length > 0) {
-        setRecommendedOutfits(nextOutfits);
-      }
+      if (nextOutfits.length > 0) setRecommendedOutfits(nextOutfits);
     } catch {
       if (options.shouldIgnore?.()) return;
     } finally {
@@ -254,7 +325,7 @@ function MainPage() {
   }, [loadRecommendations, weatherId]);
 
   const handleRetryRecommendations = () => {
-    loadRecommendations(weatherId);
+    loadRecommendations(weatherId, { force: true });
   };
 
   return (
