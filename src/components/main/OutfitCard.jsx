@@ -50,6 +50,7 @@ function OutfitCard({
         aria-pressed={isFlipped}
         aria-label={`${title} 추천 정보 보기`}
         $isFlipped={isFlipped}
+        $color={color}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
       >
@@ -143,7 +144,7 @@ const Card = styled.div`
   transition: transform 360ms ease;
 
   &:focus-visible {
-    outline: 3px solid ${({ theme }) => theme.colors.seasons.winter.primary};
+    outline: 3px solid ${({ $color }) => $color};
     outline-offset: 4px;
   }
 `;

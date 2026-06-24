@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { useTheme } from 'styled-components';
 import { supabase } from '@/api/auth/supabaseClient';
 import { clearDevSession, useAuthStore } from '@/store/authStore';
 import { useSeasonTheme } from '@/store/seasonThemeStore';
@@ -12,12 +13,28 @@ const menuItems = [
   { label: '선호 OOTD', path: '/history' },
 ];
 
+const seasonLabels = {
+  spring: '봄',
+  summer: '여름',
+  autumn: '가을',
+  winter: '겨울',
+};
+
+const seasonOptions = ['spring', 'summer', 'autumn', 'winter'];
+
 function ProfilePage() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { session, setSession } = useAuthStore();
   const email = session?.user?.email ?? 'weather@example.com';
   const displayName = email.split('@')[0] || '사용자';
-  const { seasonTheme } = useSeasonTheme();
+  const { season, seasonTheme, setSeason } = useSeasonTheme();
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+
+  const handleSeasonSelect = (nextSeason) => {
+    setSeason(nextSeason);
+    setIsThemeMenuOpen(false);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -29,13 +46,41 @@ function ProfilePage() {
   return (
     <Page $background={seasonTheme.background}>
       <ProfileCard $shadowColor={seasonTheme.primary}>
-        <ProfileSettingsButton
+        <ThemeSelectButton
           type="button"
-          aria-label="프로필 설정"
+          aria-label="시즌 테마 선택"
+          aria-haspopup="listbox"
+          aria-expanded={isThemeMenuOpen}
           $primary={seasonTheme.primary}
+          onClick={() => setIsThemeMenuOpen((currentValue) => !currentValue)}
         >
-          <ProfileSettingsIcon />
-        </ProfileSettingsButton>
+          <ThemeSwatch $color={seasonTheme.primary} />
+          <ThemeButtonText>{seasonLabels[season]}</ThemeButtonText>
+        </ThemeSelectButton>
+
+        {isThemeMenuOpen && (
+          <ThemeMenu role="listbox" aria-label="시즌 테마">
+            {seasonOptions.map((seasonOption) => {
+              const optionTheme = theme.colors.seasons[seasonOption];
+              const isActive = season === seasonOption;
+
+              return (
+                <ThemeMenuItem
+                  key={seasonOption}
+                  type="button"
+                  role="option"
+                  aria-selected={isActive}
+                  $active={isActive}
+                  $primary={optionTheme.primary}
+                  onClick={() => handleSeasonSelect(seasonOption)}
+                >
+                  <ThemeSwatch $color={optionTheme.primary} />
+                  <span>{seasonLabels[seasonOption]}</span>
+                </ThemeMenuItem>
+              );
+            })}
+          </ThemeMenu>
+        )}
 
         <AvatarArea>
           <Avatar aria-hidden="true" $primary={seasonTheme.primary}>
@@ -96,29 +141,6 @@ function ProfilePage() {
         <DangerButton type="button">계정탈퇴</DangerButton>
       </AccountCard>
     </Page>
-  );
-}
-
-function ProfileSettingsIcon() {
-  return (
-    <svg
-      width="27"
-      height="27"
-      viewBox="0 0 27 27"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M12.4 13.2C15.1 13.2 17.3 11 17.3 8.3C17.3 5.6 15.1 3.4 12.4 3.4C9.7 3.4 7.5 5.6 7.5 8.3C7.5 11 9.7 13.2 12.4 13.2ZM4.2 22.1C5.4 18.7 8.6 16.2 12.4 16.2C14 16.2 15.5 16.6 16.8 17.4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M21 14.9L21.6 16.8L23.6 16.4L22.2 17.9L23.6 19.4L21.6 19L21 20.9L20.4 19L18.4 19.4L19.8 17.9L18.4 16.4L20.4 16.8L21 14.9Z"
-        fill="currentColor"
-      />
-    </svg>
   );
 }
 
@@ -183,22 +205,72 @@ const ProfileCard = styled.section`
   box-shadow: 0 8px 22px ${({ $shadowColor }) => `${$shadowColor}29`};
 `;
 
-const ProfileSettingsButton = styled.button`
+const ThemeSelectButton = styled.button`
   position: absolute;
   top: 20px;
   right: 30px;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
+  min-width: 58px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid ${({ $primary }) => `${$primary}4D`};
+  border-radius: 999px;
+  background: #ffffff;
   color: ${({ $primary }) => $primary};
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
   --press-scale: 1;
   --press-active-filter: brightness(0.98);
+  z-index: 2;
+`;
 
-  svg {
-    width: 20px;
-    height: 20px;
-  }
+const ThemeButtonText = styled.span`
+  line-height: 1;
+`;
+
+const ThemeSwatch = styled.span`
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: ${({ $color }) => $color};
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.82);
+`;
+
+const ThemeMenu = styled.div`
+  position: absolute;
+  top: 54px;
+  right: 30px;
+  width: 96px;
+  z-index: 4;
+  display: grid;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.16);
+`;
+
+const ThemeMenuItem = styled.button`
+  height: 31px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  border: 1px solid
+    ${({ $active, $primary }) => ($active ? $primary : 'transparent')};
+  border-radius: 8px;
+  background: ${({ $active, $primary }) =>
+    $active ? `${$primary}18` : '#ffffff'};
+  color: ${({ $active, $primary }) => ($active ? $primary : '#4b5563')};
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
 `;
 
 const AvatarArea = styled.div`
