@@ -162,9 +162,9 @@ function HangerIcon() {
 const Page = styled.section`
   height: calc(100% + 44px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  align-content: stretch;
-  gap: 40px;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: clamp(20px, 5vw, 28px);
   margin: -20px -20px -24px;
   padding: 43px 28px 56px;
   background: ${({ $background }) => $background};
@@ -174,7 +174,7 @@ const ProfileCard = styled.section`
   position: relative;
   min-height: 154px;
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-columns: 102px minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   padding: 20px 28px;
@@ -203,14 +203,14 @@ const ProfileSettingsButton = styled.button`
 
 const AvatarArea = styled.div`
   position: relative;
-  width: 108px;
-  height: 108px;
+  width: 100px;
+  height: 100px;
 `;
 
 const Avatar = styled.div`
   position: relative;
-  width: 108px;
-  height: 108px;
+  width: 100px;
+  height: 100px;
   overflow: hidden;
   border: 3px solid ${({ $primary }) => $primary};
   border-radius: 50%;
@@ -219,10 +219,10 @@ const Avatar = styled.div`
 
 const AvatarHead = styled.div`
   position: absolute;
-  top: 24px;
+  top: 22px;
   left: 50%;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: #ffffff;
   transform: translateX(-50%);
@@ -231,9 +231,9 @@ const AvatarHead = styled.div`
 const AvatarBody = styled.div`
   position: absolute;
   left: 50%;
-  bottom: -4px;
-  width: 64px;
-  height: 40px;
+  bottom: -3px;
+  width: 60px;
+  height: 38px;
   border-radius: 50% 50% 0 0;
   background: #ffffff;
   transform: translateX(-50%);
@@ -270,7 +270,7 @@ const ProfileDetails = styled.div`
 
 const UserLabel = styled.span`
   color: ${({ theme }) => theme.colors.text};
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 400;
 `;
 
@@ -293,7 +293,7 @@ const UserEmail = styled.p`
   min-width: 0;
   margin: 0;
   color: #d1d5db;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.25;
   word-break: break-all;
 `;
@@ -312,7 +312,7 @@ const ProfileTag = styled.span`
   border-radius: 999px;
   background: ${({ $active, $primary }) => ($active ? $primary : '#ffffff')};
   color: ${({ $active, $primary }) => ($active ? '#ffffff' : $primary)};
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 400;
   text-align: center;
 `;
