@@ -1,8 +1,26 @@
+import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 
 function RetryButton({ color, onClick }) {
+  const [isBouncing, setIsBouncing] = useState(false);
+
+  useEffect(() => {
+    if (!isBouncing) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setIsBouncing(false);
+    }, 160);
+
+    return () => window.clearTimeout(timer);
+  }, [isBouncing]);
+
+  const handleClick = (event) => {
+    setIsBouncing(true);
+    onClick?.(event);
+  };
+
   return (
-    <Button type="button" $color={color} onClick={onClick}>
+    <Button type="button" $color={color} $bouncing={isBouncing} onClick={handleClick}>
       <Icon aria-hidden="true">↻</Icon>
       <Label>Retry</Label>
     </Button>
@@ -20,6 +38,13 @@ const Button = styled.button`
   background: ${({ $color }) => $color};
   color: #ffffff;
   box-shadow: 2px 2px 10px 2px ${({ $color }) => `${$color}33`};
+  transform: ${({ $bouncing }) => ($bouncing ? 'scale(0.92)' : 'scale(1)')};
+  transition: transform 160ms ease;
+  will-change: transform;
+
+  &:active {
+    transform: scale(0.92);
+  }
 `;
 
 const Icon = styled.span`

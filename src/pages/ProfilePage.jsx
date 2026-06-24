@@ -192,6 +192,8 @@ const ProfileSettingsButton = styled.button`
   display: grid;
   place-items: center;
   color: ${({ $primary }) => $primary};
+  --press-scale: 1;
+  --press-active-filter: brightness(0.98);
 
   svg {
     width: 20px;
@@ -250,6 +252,8 @@ const CameraButton = styled.button`
   background: #ffffff;
   color: ${({ $primary }) => $primary};
   box-shadow: 0 2px 8px rgba(17, 24, 39, 0.14);
+  --press-scale: 1;
+  --press-active-filter: brightness(0.98);
 
   svg {
     width: 13px;
@@ -336,6 +340,8 @@ const MenuButton = styled.button`
   background: #ffffff;
   color: ${({ theme }) => theme.colors.text};
   text-align: left;
+  --press-scale: 1;
+  --press-active-filter: brightness(0.98);
 
   &:last-child {
     border-bottom: 0;
@@ -384,6 +390,8 @@ const AccountButton = styled.button`
   color: #4b5563;
   font-size: 17px;
   font-weight: 500;
+  --press-scale: 1;
+  --press-active-filter: brightness(0.98);
 `;
 
 const DangerButton = styled.button`
@@ -392,6 +400,8 @@ const DangerButton = styled.button`
   color: #ef4444;
   font-size: 17px;
   font-weight: 500;
+  --press-scale: 1;
+  --press-active-filter: brightness(0.98);
 `;
 
 export default ProfilePage;

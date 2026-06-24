@@ -530,7 +530,9 @@ function ClosetCategoryView({
         </ClosetGrid>
       ) : (
         <EmptyState>
-          <EmptyTitle>이 칸에 등록된 옷이 없어요.</EmptyTitle>
+          <EmptyTitle $textColor={seasonTheme.text}>
+            아직 등록된 옷이 없어요.
+          </EmptyTitle>
           <EmptyText>오른쪽 아래 + 버튼으로 새 옷을 추가할 수 있어요.</EmptyText>
         </EmptyState>
       )}
@@ -888,19 +890,19 @@ const ColorDot = styled.span`
 
 const EmptyState = styled.div`
   display: grid;
-  gap: 8px;
+  align-content: center;
+  gap: 10px;
   justify-items: center;
-  padding: 44px 22px;
-  border: 1px dashed ${({ theme }) => theme.colors.border};
-  border-radius: 8px;
-  background: #fafafa;
+  min-height: 260px;
+  margin-top: 8px;
   text-align: center;
 `;
 
 const EmptyTitle = styled.h3`
   margin: 0;
-  color: #111827;
+  color: ${({ $textColor }) => $textColor};
   font-size: 18px;
+  font-weight: 500;
 `;
 
 const EmptyText = styled.p`
