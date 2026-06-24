@@ -12,11 +12,13 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 function OutfitCarousel({ items, seasonTheme }) {
   const trackRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isSuppressingCardClick, setIsSuppressingCardClick] = useState(false);
   const [flippedCardIds, setFlippedCardIds] = useState([]);
   const { isLiked, toggleLikedOutfit } = useLikedOutfits();
   const hasDragged = useRef(false);
-  const scrollStart = useRef(0);
-  const settleTimer = useRef(null);
+  const isMouseDown = useRef(false);
+  const gestureStartX = useRef(0);
+  const gestureStartY = useRef(0);
 
   const getSlideSize = () => {
     const slideWidth =
@@ -27,51 +29,57 @@ function OutfitCarousel({ items, seasonTheme }) {
     return slideWidth + CARD_GAP;
   };
 
-  const scrollToIndex = (index) => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const safeIndex = clamp(index, 0, items.length - 1);
-    const slideSize = getSlideSize();
-
-    setCurrentIndex(safeIndex);
-    track.scrollTo({
-      left: safeIndex * slideSize,
-      behavior: 'smooth',
-    });
-  };
-
-  const handlePointerDown = () => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    scrollStart.current = track.scrollLeft;
+  const startGesture = (clientX, clientY) => {
+    gestureStartX.current = clientX;
+    gestureStartY.current = clientY;
     hasDragged.current = false;
   };
 
-  const settleToNearestSlide = () => {
-    const track = trackRef.current;
-    if (!track) return;
+  const moveGesture = (clientX, clientY) => {
+    const distX = clientX - gestureStartX.current;
+    const distY = clientY - gestureStartY.current;
 
-    const slideSize = getSlideSize();
-    const nextIndex = clamp(
-      Math.round(track.scrollLeft / slideSize),
-      0,
-      items.length - 1,
-    );
+    if (Math.hypot(distX, distY) > CLICK_DRAG_THRESHOLD) {
+      hasDragged.current = true;
+      setIsSuppressingCardClick(true);
+    }
+  };
 
-    setCurrentIndex(nextIndex);
-    scrollToIndex(nextIndex);
+  const handleMouseDown = (event) => {
+    if (event.button !== 0) return;
+
+    isMouseDown.current = true;
+    startGesture(event.clientX, event.clientY);
+  };
+
+  const handleMouseMove = (event) => {
+    if (!isMouseDown.current) return;
+
+    moveGesture(event.clientX, event.clientY);
+  };
+
+  const handleMouseUp = () => {
+    isMouseDown.current = false;
+  };
+
+  const handleTouchStart = (event) => {
+    if (event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    startGesture(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchMove = (event) => {
+    if (event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    moveGesture(touch.clientX, touch.clientY);
   };
 
   const handleScroll = () => {
     const track = trackRef.current;
     if (!track) return;
 
-    if (Math.abs(track.scrollLeft - scrollStart.current) > CLICK_DRAG_THRESHOLD) {
-      hasDragged.current = true;
-    }
-
     const slideSize = getSlideSize();
     const nextIndex = clamp(
       Math.round(track.scrollLeft / slideSize),
@@ -79,15 +87,17 @@ function OutfitCarousel({ items, seasonTheme }) {
       items.length - 1,
     );
     setCurrentIndex(nextIndex);
-
-    window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(settleToNearestSlide, 120);
   };
 
   const handleClick = (e) => {
     if (hasDragged.current) {
       e.preventDefault();
       e.stopPropagation();
+
+      window.setTimeout(() => {
+        hasDragged.current = false;
+        setIsSuppressingCardClick(false);
+      }, 0);
     }
   };
 
@@ -104,8 +114,12 @@ function OutfitCarousel({ items, seasonTheme }) {
       <Viewport>
         <Track
           ref={trackRef}
-          onPointerDown={handlePointerDown}
-          onTouchStart={handlePointerDown}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           onScroll={handleScroll}
           onClickCapture={handleClick}
           onDragStart={(e) => e.preventDefault()}
@@ -120,6 +134,7 @@ function OutfitCarousel({ items, seasonTheme }) {
                 isFlipped={flippedCardIds.includes(item.id)}
                 isFavorite={isLiked(item.id)}
                 recommendationNumber={index + 1}
+                disableToggle={isSuppressingCardClick}
                 onToggle={() => toggleCard(item.id)}
                 onFavoriteToggle={() =>
                   toggleLikedOutfit({
@@ -179,7 +194,6 @@ const Slide = styled.div`
   display: flex;
   justify-content: center;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
 `;
 
 export default OutfitCarousel;

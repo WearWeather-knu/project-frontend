@@ -19,13 +19,20 @@ function OutfitCard({
   favoriteOffset = { top: 16, right: 18 },
   recommendationNumber,
   compact = false,
+  disableToggle = false,
   onToggle,
   onFavoriteToggle,
 }) {
+  const handleToggle = () => {
+    if (disableToggle) return;
+
+    onToggle();
+  };
+
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      onToggle();
+      handleToggle();
     }
   };
 
@@ -42,7 +49,7 @@ function OutfitCard({
         aria-pressed={isFlipped}
         aria-label={`${title} 추천 정보 보기`}
         $isFlipped={isFlipped}
-        onClick={onToggle}
+        onClick={handleToggle}
         onKeyDown={handleKeyDown}
       >
         <Face $side="front">
