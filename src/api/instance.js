@@ -9,9 +9,10 @@ const instance = axios.create({
 instance.interceptors.request.use(async (config) => {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (token || anonKey) {
+    config.headers.Authorization = `Bearer ${token ?? anonKey}`;
   }
 
   return config;
